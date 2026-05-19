@@ -4,15 +4,18 @@
  *   npm install
  *   node server.js
  *
- * Zmienne środowiskowe (opcjonalne):
+ * Zmienne środowiskowe:
  *   PORT        – domyślnie 3001
- *   CLIENT_URL  – dozwolony origin CORS, domyślnie http://localhost:5173 (Vite)
+ *   CLIENT_URL  – dozwolony origin CORS, domyślnie http://localhost:5173
+ *   JWT_SECRET  – sekret JWT (ustaw w produkcji!)
  */
 
 const express = require("express");
 const cors = require("cors");
 
+const authRouter  = require("./routes/auth");
 const itemsRouter = require("./routes/items");
+const { requireAuth } = require("./middleware/auth");
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -34,11 +37,14 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
-app.use("/items", itemsRouter);
+// Publiczne — rejestracja i logowanie
+app.use("/auth", authRouter);
 
-// POST /sync przekierowany na router z osobną ścieżką
-app.post("/sync", (req, res, next) => {
-  req.url = "/sync"; // router widzi /sync
+// Chronione — wymagają JWT
+app.use("/items", requireAuth, itemsRouter);
+
+app.post("/sync", requireAuth, (req, res, next) => {
+  req.url = "/sync";
   itemsRouter(req, res, next);
 });
 
@@ -62,7 +68,12 @@ app.listen(PORT, () => {
   console.log(`✅  CookBook API nasłuchuje na http://localhost:${PORT}`);
   console.log(`   CORS dozwolony dla: ${CLIENT_URL}`);
   console.log();
-  console.log("Endpointy:");
+  console.log("Endpointy publiczne:");
+  console.log(`  POST http://localhost:${PORT}/auth/register`);
+  console.log(`  POST http://localhost:${PORT}/auth/login`);
+  console.log(`  GET  http://localhost:${PORT}/auth/me`);
+  console.log();
+  console.log("Endpointy chronione (wymagają Bearer token):");
   console.log(`  GET    http://localhost:${PORT}/items`);
   console.log(`  POST   http://localhost:${PORT}/items`);
   console.log(`  PUT    http://localhost:${PORT}/items/:id`);

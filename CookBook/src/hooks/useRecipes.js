@@ -33,11 +33,19 @@ const ls = {
 
 // ─── API calls ───────────────────────────────────────────────────────────────
 
+function authHeaders() {
+  const token = localStorage.getItem("cookbook_token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 const api = {
   async post(path, body) {
     const r = await fetch(`${API}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify(body),
     });
     return r.json();
@@ -45,19 +53,22 @@ const api = {
   async put(path, body) {
     const r = await fetch(`${API}${path}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify(body),
     });
     return r.json();
   },
   async del(path) {
-    const r = await fetch(`${API}${path}`, { method: "DELETE" });
+    const r = await fetch(`${API}${path}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
     return r.json();
   },
   async sync(recipes, deletedIds = []) {
     const r = await fetch(`${API}/sync`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify({ recipes, deletedIds }),
     });
     return r.json();
