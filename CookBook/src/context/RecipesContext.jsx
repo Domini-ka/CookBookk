@@ -1,30 +1,16 @@
-import { createContext, useContext, useState } from 'react';
+/**
+ * context/RecipesContext.jsx
+ * Udostępnia stan useRecipes wszystkim stronom przez Context —
+ * bez przekazywania propsów przez każdy poziom.
+ */
+
+import { createContext, useContext } from "react";
+import { useRecipes } from "../hooks/useRecipes";
 
 const RecipesContext = createContext(null);
 
-/**
- * Dostarcza globalny stan przepisow do calego drzewa komponentow.
- */
-function RecipesProvider({ children }) {
-  const [recipes, setRecipes] = useState([]);
-
-  const addRecipe = (recipe) => {
-    setRecipes((prev) => [
-      ...prev,
-      { ...recipe, id: Date.now() },
-    ]);
-  };
-
-  const removeRecipe = (id) => {
-    setRecipes((prev) => prev.filter((r) => r.id !== id));
-  };
-
-  const value = {
-    recipes,
-    addRecipe,
-    removeRecipe,
-  };
-
+export function RecipesProvider({ children }) {
+  const value = useRecipes();
   return (
     <RecipesContext.Provider value={value}>
       {children}
@@ -32,17 +18,8 @@ function RecipesProvider({ children }) {
   );
 }
 
-/**
- * Hook pomocniczy — zapobiega uzyciu kontekstu poza providerem.
- */
-function useRecipesContext() {
-  const context = useContext(RecipesContext);
-
-  if (!context) {
-    throw new Error('useRecipesContext musi byc uzywany wewnatrz RecipesProvider');
-  }
-
-  return context;
+export function useRecipesContext() {
+  const ctx = useContext(RecipesContext);
+  if (!ctx) throw new Error("useRecipesContext must be used inside RecipesProvider");
+  return ctx;
 }
-
-export { RecipesProvider, useRecipesContext };
