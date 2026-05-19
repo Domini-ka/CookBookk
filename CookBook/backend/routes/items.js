@@ -85,12 +85,16 @@ router.delete("/:id", (req, res) => {
 });
 
 // ── POST /sync ────────────────────────────────────────────────────────────────
+// Body: { recipes: Recipe[], deletedIds?: string[] }
 router.post("/sync", (req, res) => {
-  const { recipes } = req.body;
+  const { recipes, deletedIds = [] } = req.body;
   if (!Array.isArray(recipes)) {
     return fail(res, "Body musi zawierać pole `recipes` (tablica).");
   }
-  const merged = store.sync(recipes);
+  if (!Array.isArray(deletedIds)) {
+    return fail(res, "Pole `deletedIds` musi być tablicą.");
+  }
+  const merged = store.sync(recipes, deletedIds);
   ok(res, merged);
 });
 

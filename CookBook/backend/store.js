@@ -55,28 +55,68 @@ const store = {
   },
 
   /**
-   * sync(clientRecipes)
-   * Naive last-write-wins merge:
-   *   - client records not on server  → inserted
-   *   - server records not on client  → kept (client doesn't know about them yet)
-   *   - matching ids                  → server record wins (server is source of truth)
-   * Returns the authoritative full list after merge.
+   * sync(clientRecipes, deletedIds)
+   * Last-write-wins merge oparty na updatedAt:
+   *
+   *   deletedIds  – tablica id usuniętych przez klienta offline
+   *
+   *   Dla każdego rekordu klienta:
+   *     • nieznany serwerowi          → insert
+   *     • znany, klient nowszy        → nadpisz (client wins)
+   *     • znany, serwer nowszy/równy  → zostaw serwer (server wins)
+   *
+   *   Rekordy serwera nieznane klientowi → zostają (klient jeszcze ich nie widział).
+   *   deletedIds → usuwane z serwera bezwarunkowo.
+   *
+   * Zwraca autorytatywną pełną listę po merge.
    */
-  sync(clientRecipes = []) {
-    const serverIds = new Set(recipes.map((r) => r.id));
-    const newFromClient = clientRecipes.filter((r) => !serverIds.has(r.id));
-    newFromClient.forEach((r) => {
-      const now = new Date().toISOString();
-      recipes.push({
-        id: r.id ?? randomUUID(),
-        title: r.title ?? "Bez tytułu",
-        category: r.category ?? "Inne",
-        ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
-        steps: Array.isArray(r.steps) ? r.steps : [],
-        createdAt: r.createdAt ?? now,
-        updatedAt: now,
-      });
+  sync(clientRecipes = [], deletedIds = []) {
+    const now = new Date().toISOString();
+
+    // 1. Usuń rekordy zgłoszone jako skasowane przez klienta
+    if (deletedIds.length) {
+      recipes = recipes.filter((r) => !deletedIds.includes(r.id));
+    }
+
+    // 2. Merge pozostałych
+    const serverMap = new Map(recipes.map((r) => [r.id, r]));
+
+    clientRecipes.forEach((c) => {
+      // Pomiń jeśli klient wysyła rekord który właśnie skasowaliśmy
+      if (deletedIds.includes(c.id)) return;
+
+      const server = serverMap.get(c.id);
+
+      if (!server) {
+        // Nowy rekord — dodaj
+        serverMap.set(c.id, {
+          id: c.id ?? randomUUID(),
+          title: c.title ?? "Bez tytułu",
+          category: c.category ?? "Inne",
+          ingredients: Array.isArray(c.ingredients) ? c.ingredients : [],
+          steps: Array.isArray(c.steps) ? c.steps : [],
+          createdAt: c.createdAt ?? now,
+          updatedAt: c.updatedAt ?? now,
+        });
+      } else {
+        // Oba istnieją — wygrywa nowszy updatedAt
+        const clientNewer =
+          new Date(c.updatedAt ?? 0) > new Date(server.updatedAt ?? 0);
+        if (clientNewer) {
+          serverMap.set(c.id, {
+            ...server,
+            title: c.title ?? server.title,
+            category: c.category ?? server.category,
+            ingredients: Array.isArray(c.ingredients) ? c.ingredients : server.ingredients,
+            steps: Array.isArray(c.steps) ? c.steps : server.steps,
+            updatedAt: c.updatedAt,
+          });
+        }
+        // else: serwer nowszy → bez zmian
+      }
     });
+
+    recipes = Array.from(serverMap.values());
     return recipes;
   },
 };

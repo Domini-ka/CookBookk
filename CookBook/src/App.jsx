@@ -1,69 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useRecipes } from "./hooks/useRecipes";
 
-// ─── useRecipes hook ────────────────────────────────────────────────────────
-const STORAGE_KEY = "cookbook_recipes";
-
-const storage = {
-  load() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  },
-  save(recipes) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
-    } catch (err) {
-      console.error("[useRecipes] Failed to persist to localStorage:", err);
-    }
-  },
-};
-
-function useRecipes() {
-  const [recipes, setRecipes] = useState(() => storage.load());
-
-  useEffect(() => {
-    storage.save(recipes);
-  }, [recipes]);
-
-  useEffect(() => {
-    const handleStorageEvent = (e) => {
-      if (e.key === STORAGE_KEY) {
-        setRecipes(e.newValue ? JSON.parse(e.newValue) : []);
-      }
-    };
-    window.addEventListener("storage", handleStorageEvent);
-    return () => window.removeEventListener("storage", handleStorageEvent);
-  }, []);
-
-  const addRecipe = useCallback((recipe) => {
-    const newRecipe = {
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...recipe,
-    };
-    setRecipes((prev) => [...prev, newRecipe]);
-    return newRecipe;
-  }, []);
-
-  const updateRecipe = useCallback((id, changes) => {
-    setRecipes((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, ...changes, updatedAt: new Date().toISOString() }
-          : r
-      )
-    );
-  }, []);
-
-  const deleteRecipe = useCallback((id) => {
-    setRecipes((prev) => prev.filter((r) => r.id !== id));
-  }, []);
-
-  return { recipes, addRecipe, updateRecipe, deleteRecipe };
-}
 
 // ─── AddRecipeForm ───────────────────────────────────────────────────────────
 const EMPTY_FORM = { title: "", category: "", ingredients: "", steps: "" };
@@ -235,13 +172,47 @@ function RecipeList({ recipes, onDelete }) {
   );
 }
 
+// ─── SyncStatus ───────────────────────────────────────────────────────────────
+function SyncStatus({ isOnline, synced, syncing, onSyncNow }) {
+  const label = syncing
+    ? "⏳ Synchronizuję..."
+    : !isOnline
+    ? "📴 Offline — zmiany zapisane lokalnie"
+    : synced
+    ? "✅ Zsynchronizowano z serwerem"
+    : "⚠️ Niezynchronizowane";
+
+  return (
+    <p>
+      {label}
+      {isOnline && !synced && !syncing && (
+        <> <button onClick={onSyncNow}>Synchronizuj teraz</button></>
+      )}
+    </p>
+  );
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { recipes, addRecipe, deleteRecipe } = useRecipes();
+  const {
+    recipes,
+    addRecipe,
+    deleteRecipe,
+    isOnline,
+    synced,
+    syncing,
+    syncNow,
+  } = useRecipes();
 
   return (
     <div>
       <h1>🍳 CookBook</h1>
+      <SyncStatus
+        isOnline={isOnline}
+        synced={synced}
+        syncing={syncing}
+        onSyncNow={syncNow}
+      />
       <hr />
       <AddRecipeForm onAdd={addRecipe} />
       <hr />

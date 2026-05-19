@@ -14,9 +14,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 const API = "http://localhost:3001";
-const RECIPES_KEY = "cookbook_recipes";
-const QUEUE_KEY   = "cookbook_queue";   // operacje czekające na sync
-const SYNCED_KEY  = "cookbook_synced";  // bool
+const RECIPES_KEY  = "cookbook_recipes";
+const QUEUE_KEY    = "cookbook_queue";    // operacje czekające na sync
+const DELETED_KEY  = "cookbook_deleted";  // id usunięte offline
+const SYNCED_KEY   = "cookbook_synced";   // bool
 
 // ─── localStorage helpers ────────────────────────────────────────────────────
 
@@ -53,11 +54,11 @@ const api = {
     const r = await fetch(`${API}${path}`, { method: "DELETE" });
     return r.json();
   },
-  async sync(recipes) {
+  async sync(recipes, deletedIds = []) {
     const r = await fetch(`${API}/sync`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipes }),
+      body: JSON.stringify({ recipes, deletedIds }),
     });
     return r.json();
   },
@@ -116,10 +117,12 @@ export function useRecipes() {
       const drained = await drainQueue();
       if (!drained) return;
 
-      const res = await api.sync(recipesRef.current);
+      const deletedIds = ls.get(DELETED_KEY, []);
+      const res = await api.sync(recipesRef.current, deletedIds);
       if (res.ok) {
         setRecipes(res.data);
         setSynced(true);
+        ls.set(DELETED_KEY, []); // wyczyść po udanym sync
       }
     } catch {
       // Server unreachable — try again on next online event
@@ -212,6 +215,9 @@ export function useRecipes() {
       } catch {}
     }
 
+    // Zapamiętaj id do wysłania przy następnym sync
+    const deleted = ls.get(DELETED_KEY, []);
+    if (!deleted.includes(id)) ls.set(DELETED_KEY, [...deleted, id]);
     enqueue({ type: "delete", payload: { id } });
   }, [isOnline, enqueue]);
 
