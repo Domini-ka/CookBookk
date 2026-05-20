@@ -12,6 +12,7 @@
 
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 
 const authRouter  = require("./routes/auth");
 const itemsRouter = require("./routes/items");
@@ -28,10 +29,12 @@ app.use(
     origin: CLIENT_URL,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 
 app.use(express.json({ limit: "10mb" })); // base64 obrazów może ważyć kilka MB
+app.use(cookieParser());
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 

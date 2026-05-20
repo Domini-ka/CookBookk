@@ -32,9 +32,9 @@ function validateRecipeBody(body) {
 }
 
 // ── GET /items ────────────────────────────────────────────────────────────────
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   const { category, q } = req.query;
-  let list = store.getAll();
+  let list = await store.getAll();
   if (category) list = list.filter((r) => r.category?.toLowerCase() === category.toLowerCase());
   if (q) {
     const term = q.toLowerCase();
@@ -47,16 +47,16 @@ router.get("/", (req, res) => {
 });
 
 // ── POST /items ───────────────────────────────────────────────────────────────
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   const errors = validateRecipeBody(req.body);
   if (errors.length) return fail(res, errors.join(" "));
-  const recipe = store.create(req.body, req.user.id);
+  const recipe = await store.create(req.body, req.user.id);
   ok(res, recipe, 201);
 });
 
 // ── PUT /items/:id ────────────────────────────────────────────────────────────
-router.put("/:id", (req, res) => {
-  const existing = store.get(req.params.id);
+router.put("/:id", async (req, res) => {
+  const existing = await store.get(req.params.id);
   if (!existing) return fail(res, "Nie znaleziono przepisu.", 404);
 
   if (req.body.title !== undefined) {
@@ -64,25 +64,25 @@ router.put("/:id", (req, res) => {
     if (errors.length) return fail(res, errors.join(" "));
   }
 
-  const result = store.update(req.params.id, req.body, req.user.id);
+  const result = await store.update(req.params.id, req.body, req.user.id);
   if (result === "forbidden") return fail(res, "Brak uprawnień do edycji tego przepisu.", 403);
   ok(res, result);
 });
 
 // ── DELETE /items/:id ─────────────────────────────────────────────────────────
-router.delete("/:id", (req, res) => {
-  const result = store.remove(req.params.id, req.user.id);
+router.delete("/:id", async (req, res) => {
+  const result = await store.remove(req.params.id, req.user.id);
   if (result === false)       return fail(res, "Nie znaleziono przepisu.", 404);
   if (result === "forbidden") return fail(res, "Brak uprawnień do usunięcia tego przepisu.", 403);
   ok(res, { id: req.params.id });
 });
 
 // ── POST /sync ────────────────────────────────────────────────────────────────
-router.post("/sync", (req, res) => {
+router.post("/sync", async (req, res) => {
   const { recipes, deletedIds = [] } = req.body;
   if (!Array.isArray(recipes))   return fail(res, "Body musi zawierać pole `recipes` (tablica).");
   if (!Array.isArray(deletedIds)) return fail(res, "Pole `deletedIds` musi być tablicą.");
-  const merged = store.sync(recipes, deletedIds, req.user.id);
+  const merged = await store.sync(recipes, deletedIds, req.user.id);
   ok(res, merged);
 });
 

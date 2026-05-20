@@ -14,7 +14,7 @@
 
 import { useState, useCallback } from "react";
 
-const API = "http://localhost:3001";
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 const TOKEN_KEY = "cookbook_token";
 const USER_KEY  = "cookbook_user";
 
@@ -35,6 +35,7 @@ async function authRequest(endpoint, username, password) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
+    credentials: "include",
   });
   const data = await res.json();
   if (!data.ok) throw new Error(data.error ?? "Błąd serwera.");
@@ -86,6 +87,9 @@ export function useAuth() {
   }, [persist]);
 
   const logout = useCallback(() => {
+    try {
+      fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" });
+    } catch {}
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     // Wyczyść też dane przepisów przy wylogowaniu

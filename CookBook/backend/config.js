@@ -9,4 +9,8 @@ const JWT_SECRET =
 
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "7d";
 
-module.exports = { JWT_SECRET, JWT_EXPIRES_IN };
+// Refresh token settings (days)
+const REFRESH_TOKEN_EXPIRES_DAYS = Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS ?? 30);
+const REFRESH_COOKIE_NAME = process.env.REFRESH_COOKIE_NAME ?? "refreshToken";
+
+module.exports = { JWT_SECRET, JWT_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_DAYS, REFRESH_COOKIE_NAME };

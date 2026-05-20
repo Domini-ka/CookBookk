@@ -13,7 +13,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const API = "http://localhost:3001";
+import authFetch from "@/services/api";
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 const RECIPES_KEY  = "cookbook_recipes";
 const QUEUE_KEY    = "cookbook_queue";    // operacje czekające na sync
 const DELETED_KEY  = "cookbook_deleted";  // id usunięte offline
@@ -43,35 +44,16 @@ function authHeaders() {
 
 const api = {
   async post(path, body) {
-    const r = await fetch(`${API}${path}`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify(body),
-    });
-    return r.json();
+    return authFetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   },
   async put(path, body) {
-    const r = await fetch(`${API}${path}`, {
-      method: "PUT",
-      headers: authHeaders(),
-      body: JSON.stringify(body),
-    });
-    return r.json();
+    return authFetch(path, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   },
   async del(path) {
-    const r = await fetch(`${API}${path}`, {
-      method: "DELETE",
-      headers: authHeaders(),
-    });
-    return r.json();
+    return authFetch(path, { method: "DELETE" });
   },
   async sync(recipes, deletedIds = []) {
-    const r = await fetch(`${API}/sync`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({ recipes, deletedIds }),
-    });
-    return r.json();
+    return authFetch("/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recipes, deletedIds }) });
   },
 };
 
