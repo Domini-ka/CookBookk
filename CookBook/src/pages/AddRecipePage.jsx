@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useRecipesContext } from "../context/RecipesContext";
+import { ImageUpload } from "../components/ImageUpload";
 
-const EMPTY_FORM = { title: "", category: "", ingredients: "", steps: "", imageUrl: "" };
+const EMPTY_FORM = { title: "", category: "", ingredients: "", steps: "" };
 
 const inputCls = (err) =>
   `w-full bg-white border-2 rounded-2xl px-4 py-3 text-cocoa-700 placeholder-sand-300
@@ -24,11 +25,14 @@ function Field({ label, hint, error, children }) {
 }
 
 export function AddRecipePage() {
-  const { addRecipe }       = useRecipesContext();
-  const navigate            = useNavigate();
-  const [form, setForm]     = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState({});
-  const [saving, setSaving] = useState(false);
+  const { addRecipe }         = useRecipesContext();
+  const navigate              = useNavigate();
+  const [form, setForm]       = useState(EMPTY_FORM);
+  const [errors, setErrors]   = useState({});
+  const [saving, setSaving]   = useState(false);
+  // Zdjęcie
+  const [imageData, setImageData] = useState(null);
+  const [imageMime, setImageMime] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -54,7 +58,8 @@ export function AddRecipePage() {
       category:    form.category.trim() || "Inne",
       ingredients: form.ingredients.split("\n").map((s) => s.trim()).filter(Boolean),
       steps:       form.steps.split("\n").map((s) => s.trim()).filter(Boolean),
-      imageUrl:    form.imageUrl.trim() || null,
+      imageData:   imageData || null,
+      imageMime:   imageMime || null,
     });
     navigate("/");
   };
@@ -86,10 +91,16 @@ export function AddRecipePage() {
             </Field>
           </div>
 
-          <Field label="Zdjęcie" hint="opcjonalne — wklej URL">
-            <input id="imageUrl" name="imageUrl" value={form.imageUrl}
-              onChange={handleChange} placeholder="https://…"
-              className={inputCls(false)} />
+          {/* Zdjęcie z pliku */}
+          <Field label="Zdjęcie" hint="opcjonalne">
+            <ImageUpload
+              currentDataUrl={null}
+              onImageReady={({ imageData: d, imageMime: m }) => {
+                setImageData(d);
+                setImageMime(m);
+              }}
+              onClear={() => { setImageData(null); setImageMime(null); }}
+            />
           </Field>
 
           <Field label="Składniki *" hint="każdy w nowej linii" error={errors.ingredients}>

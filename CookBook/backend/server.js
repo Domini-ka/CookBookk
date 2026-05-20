@@ -31,7 +31,7 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" })); // base64 obrazów może ważyć kilka MB
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
