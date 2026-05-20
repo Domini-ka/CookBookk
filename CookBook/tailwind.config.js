@@ -1,40 +1,29 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-    content: ["./index.html", "./src/**/*.{js,jsx}"],
-    theme: {
-      extend: {
-        colors: {
-          ink: {
-            50:  "#f5f0eb",
-            100: "#e8e4df",
-            200: "#c9c3bc",
-            300: "#a8a099",
-            400: "#7d7570",
-            500: "#4a4440",
-            600: "#2e2a27",
-            700: "#1e1b19",
-            800: "#141210",
-            900: "#0f0f0f",
-          },
-          amber: {
-            400: "#f4a535",
-            500: "#e8932a",
-            600: "#d4811e",
-          },
-        },
-        fontFamily: {
-          sans:    ["DM Sans", "sans-serif"],
-          display: ["DM Serif Display", "serif"],
-        },
-        boxShadow: {
-          card: "0 1px 3px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)",
-          "card-hover": "0 4px 12px rgba(0,0,0,0.5), 0 16px 40px rgba(0,0,0,0.4)",
-          glow: "0 0 0 3px rgba(244,165,53,0.25)",
-        },
-        transitionTimingFunction: {
-          smooth: "cubic-bezier(0.4, 0, 0.2, 1)",
-        },
+  content: ["./index.html", "./src/**/*.{js,jsx}"],
+  theme: {
+    extend: {
+      colors: {
+        vanilla:  { 50: "#fdf8f3", 100: "#faeee3", 200: "#f3d9c4" },
+        rose:     { 100: "#fde8ec", 200: "#fbc8d4", 300: "#f49ab0", 400: "#e97a98" },
+        sky:      { 100: "#dff0fb", 200: "#b8ddf5", 300: "#7ec3ec" },
+        mint:     { 100: "#d9f5ec", 200: "#a8e6d3", 300: "#6dcdb5" },
+        peach:    { 100: "#fde8d8", 200: "#facbb0", 300: "#f4a47a" },
+        sand:     { 200: "#e8d9c8", 300: "#d4bfa8", 400: "#b89880", 500: "#8a6f5e" },
+        cocoa:    { 700: "#3d2f2a", 800: "#2b201c" },
       },
+      fontFamily: {
+        sans:    ["Nunito", "sans-serif"],
+        display: ["Playfair Display", "serif"],
+      },
+      boxShadow: {
+        soft:   "0 2px 12px rgba(180,140,120,0.12), 0 1px 3px rgba(180,140,120,0.08)",
+        card:   "0 4px 20px rgba(180,140,120,0.15), 0 1px 4px rgba(180,140,120,0.10)",
+        hover:  "0 8px 32px rgba(180,140,120,0.22), 0 2px 8px rgba(180,140,120,0.14)",
+        inner:  "inset 0 1px 3px rgba(180,140,120,0.15)",
+      },
+      borderRadius: { "2xl": "1rem", "3xl": "1.5rem" },
     },
-    plugins: [],
-  };
+  },
+  plugins: [],
+};

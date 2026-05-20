@@ -1,17 +1,17 @@
-/**
- * components/AuthForm.jsx
- * Logika bez zmian. Tylko UI / klasy Tailwind.
- */
-
 import { useState } from "react";
 
 const EMPTY = { username: "", password: "", confirm: "" };
+
+const inputCls = (err) =>
+  `w-full bg-white border-2 rounded-2xl px-4 py-3 text-cocoa-700 placeholder-sand-300
+   outline-none transition-all duration-200 text-sm font-medium
+   focus:ring-0 focus:border-rose-300
+   ${err ? "border-red-300 bg-red-50" : "border-vanilla-200 hover:border-rose-200"}`;
 
 export function AuthForm({ onLogin, onRegister, loading, error }) {
   const [mode, setMode]     = useState("login");
   const [form, setForm]     = useState(EMPTY);
   const [errors, setErrors] = useState({});
-
   const isRegister = mode === "register";
 
   const handleChange = (e) => {
@@ -40,110 +40,78 @@ export function AuthForm({ onLogin, onRegister, loading, error }) {
 
   const switchMode = (m) => { setMode(m); setForm(EMPTY); setErrors({}); };
 
-  const inputCls = (hasErr) =>
-    `w-full bg-ink-800 border rounded-xl px-4 py-3 text-ink-100 placeholder-ink-400
-     outline-none transition-all duration-200
-     focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60
-     ${hasErr ? "border-red-500/60" : "border-ink-600 hover:border-ink-400"}`;
-
   return (
-    <div className="min-h-screen bg-ink-900 flex items-center justify-center p-4">
-      {/* Background texture */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1e1b19_0%,_#0f0f0f_70%)] pointer-events-none" />
+    <div className="min-h-screen bg-vanilla-50 flex items-center justify-center p-4"
+         style={{ backgroundImage: "radial-gradient(circle at 20% 20%, #fde8ec55 0%, transparent 50%), radial-gradient(circle at 80% 80%, #d9f5ec55 0%, transparent 50%), radial-gradient(circle at 60% 10%, #dff0fb55 0%, transparent 40%)" }}>
 
-      <div className="relative w-full max-w-md">
+      <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-10">
-          <div className="text-5xl mb-3">🍳</div>
-          <h1 className="font-display text-4xl text-ink-50 tracking-tight">CookBook</h1>
-          <p className="text-ink-400 text-sm mt-2 font-light">Twoje przepisy, zawsze pod ręką</p>
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 bg-rose-100 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-4 shadow-soft">
+            🍳
+          </div>
+          <h1 className="font-display text-4xl text-cocoa-700">CookBook</h1>
+          <p className="text-sand-400 text-sm mt-1.5">Gotuj z radością 🌸</p>
         </div>
 
         {/* Card */}
-        <div className="bg-ink-800/80 backdrop-blur border border-ink-700/50 rounded-2xl p-8 shadow-card">
-          {/* Mode tabs */}
-          <div className="flex gap-1 bg-ink-900/60 rounded-xl p-1 mb-8">
-            {["login", "register"].map((m) => (
-              <button
-                key={m}
-                onClick={() => switchMode(m)}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200
-                  ${mode === m
-                    ? "bg-amber-400 text-ink-900 shadow-sm"
-                    : "text-ink-400 hover:text-ink-200"}`}
-              >
+        <div className="bg-white rounded-3xl p-8 shadow-card border border-vanilla-200">
+          {/* Tabs */}
+          <div className="flex gap-1 bg-vanilla-100 rounded-2xl p-1 mb-7">
+            {["login","register"].map((m) => (
+              <button key={m} onClick={() => switchMode(m)}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-200
+                  ${mode === m ? "bg-white text-cocoa-700 shadow-soft" : "text-sand-400 hover:text-sand-500"}`}>
                 {m === "login" ? "Logowanie" : "Rejestracja"}
               </button>
             ))}
           </div>
 
-          <form onSubmit={handleSubmit} noValidate autoComplete="off" className="space-y-5">
-            {/* Username */}
+          <form onSubmit={handleSubmit} noValidate autoComplete="off" className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-xs font-medium text-ink-300 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-sand-400 uppercase tracking-widest mb-1.5">
                 Nazwa użytkownika
               </label>
-              <input
-                id="username" name="username" value={form.username}
-                onChange={handleChange} placeholder="min. 3 znaki"
-                autoComplete="off"
-                className={inputCls(errors.username)}
-              />
-              {errors.username && (
-                <p className="text-red-400 text-xs mt-1.5">{errors.username}</p>
-              )}
+              <input id="username" name="username" value={form.username}
+                onChange={handleChange} placeholder="min. 3 znaki" autoComplete="off"
+                className={inputCls(errors.username)} />
+              {errors.username && <p className="text-red-400 text-xs mt-1">{errors.username}</p>}
             </div>
 
-            {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-xs font-medium text-ink-300 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-sand-400 uppercase tracking-widest mb-1.5">
                 Hasło
               </label>
-              <input
-                id="password" name="password" type="password"
-                value={form.password} onChange={handleChange}
-                placeholder="min. 6 znaków" autoComplete="off"
-                className={inputCls(errors.password)}
-              />
-              {errors.password && (
-                <p className="text-red-400 text-xs mt-1.5">{errors.password}</p>
-              )}
+              <input id="password" name="password" type="password" value={form.password}
+                onChange={handleChange} placeholder="min. 6 znaków" autoComplete="off"
+                className={inputCls(errors.password)} />
+              {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password}</p>}
             </div>
 
-            {/* Confirm (register only) */}
             {isRegister && (
               <div>
-                <label htmlFor="confirm" className="block text-xs font-medium text-ink-300 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-sand-400 uppercase tracking-widest mb-1.5">
                   Powtórz hasło
                 </label>
-                <input
-                  id="confirm" name="confirm" type="password"
-                  value={form.confirm} onChange={handleChange}
-                  autoComplete="off"
-                  className={inputCls(errors.confirm)}
-                />
-                {errors.confirm && (
-                  <p className="text-red-400 text-xs mt-1.5">{errors.confirm}</p>
-                )}
+                <input id="confirm" name="confirm" type="password" value={form.confirm}
+                  onChange={handleChange} autoComplete="off"
+                  className={inputCls(errors.confirm)} />
+                {errors.confirm && <p className="text-red-400 text-xs mt-1">{errors.confirm}</p>}
               </div>
             )}
 
-            {/* Server error */}
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-500 text-sm">
                 {error}
               </div>
             )}
 
-            {/* Submit */}
-            <button
-              type="submit" disabled={loading}
-              className="w-full bg-amber-400 hover:bg-amber-500 active:bg-amber-600
-                         text-ink-900 font-semibold py-3 px-6 rounded-xl
-                         transition-all duration-200 hover:shadow-glow
-                         disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-            >
-              {loading ? "Proszę czekać…" : isRegister ? "Utwórz konto" : "Zaloguj się"}
+            <button type="submit" disabled={loading}
+              className="w-full bg-rose-300 hover:bg-rose-400 active:bg-rose-400
+                         text-white font-bold py-3.5 rounded-2xl mt-2
+                         transition-all duration-200 shadow-soft hover:shadow-card
+                         disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+              {loading ? "Chwileczka…" : isRegister ? "Utwórz konto ✨" : "Zaloguj się 🌸"}
             </button>
           </form>
         </div>
