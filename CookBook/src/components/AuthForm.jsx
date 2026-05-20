@@ -1,13 +1,6 @@
 /**
- * AuthForm.jsx
- * Formularz logowania / rejestracji — przełączany zakładkami.
- * Brak stylów, czysty HTML + React.
- *
- * Props:
- *   onLogin    {fn} – callback(username, password)
- *   onRegister {fn} – callback(username, password)
- *   loading    {bool}
- *   error      {string|null}
+ * components/AuthForm.jsx
+ * Logika bez zmian. Tylko UI / klasy Tailwind.
  */
 
 import { useState } from "react";
@@ -15,7 +8,7 @@ import { useState } from "react";
 const EMPTY = { username: "", password: "", confirm: "" };
 
 export function AuthForm({ onLogin, onRegister, loading, error }) {
-  const [mode, setMode]     = useState("login"); // "login" | "register"
+  const [mode, setMode]     = useState("login");
   const [form, setForm]     = useState(EMPTY);
   const [errors, setErrors] = useState({});
 
@@ -29,12 +22,9 @@ export function AuthForm({ onLogin, onRegister, loading, error }) {
 
   const validate = () => {
     const e = {};
-    if (form.username.trim().length < 3)
-      e.username = "Min. 3 znaki.";
-    if (form.password.length < 6)
-      e.password = "Min. 6 znaków.";
-    if (isRegister && form.password !== form.confirm)
-      e.confirm = "Hasła się nie zgadzają.";
+    if (form.username.trim().length < 3) e.username = "Min. 3 znaki.";
+    if (form.password.length < 6)        e.password = "Min. 6 znaków.";
+    if (isRegister && form.password !== form.confirm) e.confirm = "Hasła się nie zgadzają.";
     return e;
   };
 
@@ -42,103 +32,122 @@ export function AuthForm({ onLogin, onRegister, loading, error }) {
     evt.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
-
     try {
-      if (isRegister) {
-        await onRegister(form.username.trim(), form.password);
-      } else {
-        await onLogin(form.username.trim(), form.password);
-      }
-    } catch {
-      // error jest już ustawiony przez hook — nie robimy nic extra
-    }
+      if (isRegister) await onRegister(form.username.trim(), form.password);
+      else            await onLogin(form.username.trim(), form.password);
+    } catch {}
   };
 
-  const switchMode = (m) => {
-    setMode(m);
-    setForm(EMPTY);
-    setErrors({});
-  };
+  const switchMode = (m) => { setMode(m); setForm(EMPTY); setErrors({}); };
+
+  const inputCls = (hasErr) =>
+    `w-full bg-ink-800 border rounded-xl px-4 py-3 text-ink-100 placeholder-ink-400
+     outline-none transition-all duration-200
+     focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60
+     ${hasErr ? "border-red-500/60" : "border-ink-600 hover:border-ink-400"}`;
 
   return (
-    <div>
-      <h1>🍳 CookBook</h1>
+    <div className="min-h-screen bg-ink-900 flex items-center justify-center p-4">
+      {/* Background texture */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#1e1b19_0%,_#0f0f0f_70%)] pointer-events-none" />
 
-      <div>
-        <button
-          onClick={() => switchMode("login")}
-          disabled={mode === "login"}
-        >
-          Logowanie
-        </button>
-        {" "}
-        <button
-          onClick={() => switchMode("register")}
-          disabled={mode === "register"}
-        >
-          Rejestracja
-        </button>
-      </div>
-
-      <h2>{isRegister ? "Utwórz konto" : "Zaloguj się"}</h2>
-
-      <form onSubmit={handleSubmit} noValidate autoComplete="off">
-        <div>
-          <label htmlFor="username">Nazwa użytkownika</label>
-          <br />
-          <input
-            id="username"
-            name="username"
-            value={form.username}
-            onChange={handleChange}
-            placeholder="min. 3 znaki"
-            autoComplete="off"
-          />
-          {errors.username && <span style={{ color: "red" }}> {errors.username}</span>}
+      <div className="relative w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-10">
+          <div className="text-5xl mb-3">🍳</div>
+          <h1 className="font-display text-4xl text-ink-50 tracking-tight">CookBook</h1>
+          <p className="text-ink-400 text-sm mt-2 font-light">Twoje przepisy, zawsze pod ręką</p>
         </div>
 
-        <div>
-          <label htmlFor="password">Hasło</label>
-          <br />
-          <input
-            id="password"
-            name="password"
-            type="password"
-            value={form.password}
-            onChange={handleChange}
-            placeholder="min. 6 znaków"
-            autoComplete="off"
-          />
-          {errors.password && <span style={{ color: "red" }}> {errors.password}</span>}
-        </div>
-
-        {isRegister && (
-          <div>
-            <label htmlFor="confirm">Powtórz hasło</label>
-            <br />
-            <input
-              id="confirm"
-              name="confirm"
-              type="password"
-              value={form.confirm}
-              onChange={handleChange}
-              autoComplete="off"
-            />
-            {errors.confirm && <span style={{ color: "red" }}> {errors.confirm}</span>}
+        {/* Card */}
+        <div className="bg-ink-800/80 backdrop-blur border border-ink-700/50 rounded-2xl p-8 shadow-card">
+          {/* Mode tabs */}
+          <div className="flex gap-1 bg-ink-900/60 rounded-xl p-1 mb-8">
+            {["login", "register"].map((m) => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200
+                  ${mode === m
+                    ? "bg-amber-400 text-ink-900 shadow-sm"
+                    : "text-ink-400 hover:text-ink-200"}`}
+              >
+                {m === "login" ? "Logowanie" : "Rejestracja"}
+              </button>
+            ))}
           </div>
-        )}
 
-        {error && <p style={{ color: "red" }}>⚠️ {error}</p>}
+          <form onSubmit={handleSubmit} noValidate autoComplete="off" className="space-y-5">
+            {/* Username */}
+            <div>
+              <label htmlFor="username" className="block text-xs font-medium text-ink-300 uppercase tracking-wider mb-2">
+                Nazwa użytkownika
+              </label>
+              <input
+                id="username" name="username" value={form.username}
+                onChange={handleChange} placeholder="min. 3 znaki"
+                autoComplete="off"
+                className={inputCls(errors.username)}
+              />
+              {errors.username && (
+                <p className="text-red-400 text-xs mt-1.5">{errors.username}</p>
+              )}
+            </div>
 
-        <br />
-        <button type="submit" disabled={loading}>
-          {loading
-            ? "Proszę czekać..."
-            : isRegister
-            ? "Zarejestruj się"
-            : "Zaloguj się"}
-        </button>
-      </form>
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-xs font-medium text-ink-300 uppercase tracking-wider mb-2">
+                Hasło
+              </label>
+              <input
+                id="password" name="password" type="password"
+                value={form.password} onChange={handleChange}
+                placeholder="min. 6 znaków" autoComplete="off"
+                className={inputCls(errors.password)}
+              />
+              {errors.password && (
+                <p className="text-red-400 text-xs mt-1.5">{errors.password}</p>
+              )}
+            </div>
+
+            {/* Confirm (register only) */}
+            {isRegister && (
+              <div>
+                <label htmlFor="confirm" className="block text-xs font-medium text-ink-300 uppercase tracking-wider mb-2">
+                  Powtórz hasło
+                </label>
+                <input
+                  id="confirm" name="confirm" type="password"
+                  value={form.confirm} onChange={handleChange}
+                  autoComplete="off"
+                  className={inputCls(errors.confirm)}
+                />
+                {errors.confirm && (
+                  <p className="text-red-400 text-xs mt-1.5">{errors.confirm}</p>
+                )}
+              </div>
+            )}
+
+            {/* Server error */}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit" disabled={loading}
+              className="w-full bg-amber-400 hover:bg-amber-500 active:bg-amber-600
+                         text-ink-900 font-semibold py-3 px-6 rounded-xl
+                         transition-all duration-200 hover:shadow-glow
+                         disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+            >
+              {loading ? "Proszę czekać…" : isRegister ? "Utwórz konto" : "Zaloguj się"}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
