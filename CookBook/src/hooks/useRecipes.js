@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const API = "http://localhost:3001";
+const API = "https://cookbookk.onrender.com";
 const RECIPES_KEY  = "cookbook_recipes";
 const QUEUE_KEY    = "cookbook_queue";    // operacje czekające na sync
 const DELETED_KEY  = "cookbook_deleted";  // id usunięte offline
