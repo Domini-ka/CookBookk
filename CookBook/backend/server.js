@@ -6,7 +6,7 @@
  *
  * Zmienne środowiskowe:
  *   PORT        – domyślnie 3001
- *   CLIENT_URL  – dozwolony origin CORS, domyślnie http://localhost:5173
+ *   CLIENT_URL  – dozwolony origin CORS, domyślnie https://cookbookk.onrender.com
  *   JWT_SECRET  – sekret JWT (ustaw w produkcji!)
  */
 
@@ -19,7 +19,7 @@ const { requireAuth } = require("./middleware/auth");
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
-const CLIENT_URL = process.env.CLIENT_URL ?? "http://localhost:5173";
+const CLIENT_URL = process.env.CLIENT_URL ?? "https://coookbook.netlify.app";
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
@@ -65,18 +65,18 @@ app.use((err, _req, res, _next) => {
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
-  console.log(`✅  CookBook API nasłuchuje na http://localhost:${PORT}`);
+  console.log(`✅  CookBook API nasłuchuje na porcie: ${PORT}`);
   console.log(`   CORS dozwolony dla: ${CLIENT_URL}`);
   console.log();
   console.log("Endpointy publiczne:");
-  console.log(`  POST http://localhost:${PORT}/auth/register`);
-  console.log(`  POST http://localhost:${PORT}/auth/login`);
-  console.log(`  GET  http://localhost:${PORT}/auth/me`);
+  console.log(`  POST https://cookbookk.onrender.com/auth/register`);
+  console.log(`  POST https://cookbookk.onrender.com/auth/login`);
+  console.log(`  GET  https://cookbookk.onrender.com/auth/me`);
   console.log();
   console.log("Endpointy chronione (wymagają Bearer token):");
-  console.log(`  GET    http://localhost:${PORT}/items`);
-  console.log(`  POST   http://localhost:${PORT}/items`);
-  console.log(`  PUT    http://localhost:${PORT}/items/:id`);
-  console.log(`  DELETE http://localhost:${PORT}/items/:id`);
-  console.log(`  POST   http://localhost:${PORT}/sync`);
+  console.log(`  GET    https://cookbookk.onrender.com/items`);
+  console.log(`  POST   https://cookbookk.onrender.com/items`);
+  console.log(`  PUT    https://cookbookk.onrender.com/items/:id`);
+  console.log(`  DELETE https://cookbookk.onrender.com/items/:id`);
+  console.log(`  POST   https://cookbookk.onrender.com/sync`);
 });
