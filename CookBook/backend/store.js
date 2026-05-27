@@ -1,118 +1,172 @@
 /**
- * store.js — in-memory store
- * Struktura rekordu:
- * { id, title, category, ingredients[], steps[], imageData, imageMime,
- *   createdBy, createdAt, updatedAt, favorite }
- *
- * imageData – base64 string (bez prefixu data:…) lub null
- * imageMime  – "image/jpeg" / "image/png" / "image/webp" itd., lub null
- * createdBy  – userId (string) właściciela przepisu
+ * store.js — SQLite version
+ * Zastępuje stary in-memory store.
+ * Zdjęcia przechowywane jako base64 w kolumnie image_data.
  */
 
 const { randomUUID } = require("crypto");
+const db = require("./db");
 
-let recipes = [];
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const ALLOWED_UPDATE = [
-  "title", "category", "ingredients", "steps",
-  "imageData", "imageMime", "favorite",
-];
+function toRow(recipe) {
+  return {
+    ...recipe,
+    ingredients: JSON.parse(recipe.ingredients),
+    steps:       JSON.parse(recipe.steps),
+    favorite:    recipe.favorite === 1,
+    imageData:   recipe.image_data ?? null,
+    imageMime:   recipe.image_mime ?? null,
+    ovenTemp:    recipe.oven_temp  ?? null,
+    createdBy:   recipe.created_by,
+    createdAt:   recipe.created_at,
+    updatedAt:   recipe.updated_at,
+  };
+}
+
+// ── Prepared statements ───────────────────────────────────────────────────────
+
+const stmts = {
+  getAll: db.prepare("SELECT * FROM recipes ORDER BY created_at DESC"),
+
+  getOne: db.prepare("SELECT * FROM recipes WHERE id = ?"),
+
+  insert: db.prepare(`
+    INSERT INTO recipes
+      (id, title, category, ingredients, steps, image_data, image_mime, oven_temp, favorite, created_by, created_at, updated_at)
+    VALUES
+      (@id, @title, @category, @ingredients, @steps, @imageData, @imageMime, @ovenTemp, @favorite, @createdBy, @now, @now)
+  `),
+
+  update: db.prepare(`
+    UPDATE recipes SET
+      title       = @title,
+      category    = @category,
+      ingredients = @ingredients,
+      steps       = @steps,
+      image_data  = @imageData,
+      image_mime  = @imageMime,
+      oven_temp   = @ovenTemp,
+      favorite    = @favorite,
+      updated_at  = @now
+    WHERE id = @id
+  `),
+
+  delete: db.prepare("DELETE FROM recipes WHERE id = ?"),
+
+  getOwner: db.prepare("SELECT created_by FROM recipes WHERE id = ?"),
+};
+
+// ── Store API ─────────────────────────────────────────────────────────────────
 
 const store = {
-  getAll() { return recipes; },
+  getAll() {
+    return stmts.getAll.all().map(toRow);
+  },
 
-  get(id) { return recipes.find((r) => r.id === id); },
+  get(id) {
+    const row = stmts.getOne.get(id);
+    return row ? toRow(row) : undefined;
+  },
 
   create(data, userId) {
     const now = new Date().toISOString();
     const recipe = {
       id:          randomUUID(),
       title:       data.title,
-      category:    data.category ?? "Inne",
-      ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
-      steps:       Array.isArray(data.steps)       ? data.steps       : [],
-      imageData:   data.imageData  ?? null,
-      imageMime:   data.imageMime  ?? null,
-      favorite:    false,
+      category:    data.category    ?? "Inne",
+      ingredients: JSON.stringify(Array.isArray(data.ingredients) ? data.ingredients : []),
+      steps:       JSON.stringify(Array.isArray(data.steps)       ? data.steps       : []),
+      imageData:   data.imageData   ?? null,
+      imageMime:   data.imageMime   ?? null,
+      ovenTemp:    data.ovenTemp    ?? null,
+      favorite:    0,
       createdBy:   userId,
-      createdAt:   now,
-      updatedAt:   now,
+      now,
     };
-    recipes.push(recipe);
-    return recipe;
+    stmts.insert.run(recipe);
+    return toRow(stmts.getOne.get(recipe.id));
   },
 
-  /** Returns updated record, null if not found, "forbidden" if wrong owner */
   update(id, changes, userId) {
-    const idx = recipes.findIndex((r) => r.id === id);
-    if (idx === -1) return null;
-    if (recipes[idx].createdBy !== userId) return "forbidden";
+    const existing = stmts.getOne.get(id);
+    if (!existing) return null;
+    if (existing.created_by !== userId) return "forbidden";
 
-    const patch = Object.fromEntries(
-      Object.entries(changes).filter(([k]) => ALLOWED_UPDATE.includes(k))
-    );
-    recipes[idx] = { ...recipes[idx], ...patch, updatedAt: new Date().toISOString() };
-    return recipes[idx];
+    const merged = {
+      id,
+      title:       changes.title       ?? existing.title,
+      category:    changes.category    ?? existing.category,
+      ingredients: JSON.stringify(Array.isArray(changes.ingredients) ? changes.ingredients : JSON.parse(existing.ingredients)),
+      steps:       JSON.stringify(Array.isArray(changes.steps)       ? changes.steps       : JSON.parse(existing.steps)),
+      imageData:   "imageData" in changes ? (changes.imageData ?? null) : existing.image_data,
+      imageMime:   "imageMime" in changes ? (changes.imageMime ?? null) : existing.image_mime,
+      ovenTemp:    "ovenTemp"  in changes ? (changes.ovenTemp  ?? null) : existing.oven_temp,
+      favorite:    "favorite"  in changes ? (changes.favorite ? 1 : 0) : existing.favorite,
+      now:         new Date().toISOString(),
+    };
+    stmts.update.run(merged);
+    return toRow(stmts.getOne.get(id));
   },
 
-  /** Returns true if deleted, false if not found, "forbidden" if wrong owner */
   remove(id, userId) {
-    const recipe = recipes.find((r) => r.id === id);
-    if (!recipe) return false;
-    if (recipe.createdBy !== userId) return "forbidden";
-    recipes = recipes.filter((r) => r.id !== id);
+    const row = stmts.getOwner.get(id);
+    if (!row) return false;
+    if (row.created_by !== userId) return "forbidden";
+    stmts.delete.run(id);
     return true;
   },
 
   sync(clientRecipes = [], deletedIds = [], userId) {
     const now = new Date().toISOString();
 
-    // Delete only records owned by this user
-    if (deletedIds.length) {
-      recipes = recipes.filter(
-        (r) => !deletedIds.includes(r.id) || r.createdBy !== userId
-      );
-    }
+    const syncAll = db.transaction(() => {
+      // Usuń przepisy klienta (tylko własne)
+      for (const id of deletedIds) {
+        const row = stmts.getOwner.get(id);
+        if (row && row.created_by === userId) stmts.delete.run(id);
+      }
 
-    const serverMap = new Map(recipes.map((r) => [r.id, r]));
+      for (const c of clientRecipes) {
+        if (deletedIds.includes(c.id)) continue;
+        const existing = stmts.getOne.get(c.id);
 
-    clientRecipes.forEach((c) => {
-      if (deletedIds.includes(c.id)) return;
-      const server = serverMap.get(c.id);
-      if (!server) {
-        serverMap.set(c.id, {
-          id:          c.id ?? randomUUID(),
-          title:       c.title ?? "Bez tytułu",
-          category:    c.category ?? "Inne",
-          ingredients: Array.isArray(c.ingredients) ? c.ingredients : [],
-          steps:       Array.isArray(c.steps)       ? c.steps       : [],
-          imageData:   c.imageData ?? null,
-          imageMime:   c.imageMime ?? null,
-          favorite:    c.favorite  ?? false,
-          createdBy:   userId,
-          createdAt:   c.createdAt ?? now,
-          updatedAt:   c.updatedAt ?? now,
-        });
-      } else {
-        const clientNewer = new Date(c.updatedAt ?? 0) > new Date(server.updatedAt ?? 0);
-        if (clientNewer && server.createdBy === userId) {
-          serverMap.set(c.id, {
-            ...server,
-            title:       c.title       ?? server.title,
-            category:    c.category    ?? server.category,
-            ingredients: Array.isArray(c.ingredients) ? c.ingredients : server.ingredients,
-            steps:       Array.isArray(c.steps)       ? c.steps       : server.steps,
-            imageData:   c.imageData   ?? server.imageData,
-            imageMime:   c.imageMime   ?? server.imageMime,
-            favorite:    c.favorite    ?? server.favorite,
-            updatedAt:   c.updatedAt,
+        if (!existing) {
+          // Nowy przepis od klienta
+          stmts.insert.run({
+            id:          c.id ?? randomUUID(),
+            title:       c.title       ?? "Bez tytułu",
+            category:    c.category    ?? "Inne",
+            ingredients: JSON.stringify(Array.isArray(c.ingredients) ? c.ingredients : []),
+            steps:       JSON.stringify(Array.isArray(c.steps)       ? c.steps       : []),
+            imageData:   c.imageData   ?? null,
+            imageMime:   c.imageMime   ?? null,
+            favorite:    c.favorite    ? 1 : 0,
+            createdBy:   userId,
+            now:         c.createdAt   ?? now,
           });
+        } else {
+          // Last-write-wins po updatedAt, tylko własny przepis
+          const clientNewer = new Date(c.updatedAt ?? 0) > new Date(existing.updated_at ?? 0);
+          if (clientNewer && existing.created_by === userId) {
+            stmts.update.run({
+              id,
+              title:       c.title       ?? existing.title,
+              category:    c.category    ?? existing.category,
+              ingredients: JSON.stringify(Array.isArray(c.ingredients) ? c.ingredients : JSON.parse(existing.ingredients)),
+              steps:       JSON.stringify(Array.isArray(c.steps)       ? c.steps       : JSON.parse(existing.steps)),
+              imageData:   c.imageData   ?? existing.image_data,
+              imageMime:   c.imageMime   ?? existing.image_mime,
+              favorite:    c.favorite    ? 1 : 0,
+              now:         c.updatedAt,
+            });
+          }
         }
       }
     });
 
-    recipes = Array.from(serverMap.values());
-    return recipes;
+    syncAll();
+    return stmts.getAll.all().map(toRow);
   },
 };
 

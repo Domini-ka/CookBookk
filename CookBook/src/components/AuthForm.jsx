@@ -68,12 +68,21 @@ export function AuthForm({ onLogin, onRegister, loading, error }) {
           </div>
 
           <form onSubmit={handleSubmit} noValidate autoComplete="off" className="space-y-4">
+            {/*
+              Ukryty honeypot — zmyla autofill przeglądarki.
+              Chrome/Edge szuka pola type="password" żeby zaoferować menedżer haseł.
+              Dajemy mu jedno ukryte pole żeby je "znalazł" i zignorował resztę.
+            */}
+            <input type="password" name="fake_password" style={{ display: "none" }} readOnly tabIndex={-1} />
+
             <div>
               <label className="block text-xs font-bold text-sand-400 uppercase tracking-widest mb-1.5">
                 Nazwa użytkownika
               </label>
-              <input id="username" name="username" value={form.username}
-                onChange={handleChange} placeholder="min. 3 znaki" autoComplete="off"
+              <input
+                id="username" name="username" value={form.username}
+                onChange={handleChange} placeholder="min. 3 znaki"
+                autoComplete="off" data-lpignore="true" data-form-type="other"
                 className={inputCls(errors.username)} />
               {errors.username && <p className="text-red-400 text-xs mt-1">{errors.username}</p>}
             </div>
@@ -82,9 +91,21 @@ export function AuthForm({ onLogin, onRegister, loading, error }) {
               <label className="block text-xs font-bold text-sand-400 uppercase tracking-widest mb-1.5">
                 Hasło
               </label>
-              <input id="password" name="password" type="password" value={form.password}
-                onChange={handleChange} placeholder="min. 6 znaków" autoComplete="off"
-                className={inputCls(errors.password)} />
+              {/*
+                Używamy type="text" z letter-spacing i font zamiast type="password".
+                Przeglądarka nie rozpoznaje go jako pola hasła → zero popupów.
+                Znaki maskujemy przez CSS: font-family z samymi kropkami.
+              */}
+              <input
+                id="password" name="password"
+                type="text"
+                value={form.password}
+                onChange={handleChange}
+                placeholder="min. 6 znaków"
+                autoComplete="off" data-lpignore="true" data-form-type="other"
+                className={inputCls(errors.password)}
+                style={{ WebkitTextSecurity: "disc", textSecurity: "disc" }}
+              />
               {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password}</p>}
             </div>
 
@@ -93,9 +114,15 @@ export function AuthForm({ onLogin, onRegister, loading, error }) {
                 <label className="block text-xs font-bold text-sand-400 uppercase tracking-widest mb-1.5">
                   Powtórz hasło
                 </label>
-                <input id="confirm" name="confirm" type="password" value={form.confirm}
-                  onChange={handleChange} autoComplete="off"
-                  className={inputCls(errors.confirm)} />
+                <input
+                  id="confirm" name="confirm"
+                  type="text"
+                  value={form.confirm}
+                  onChange={handleChange}
+                  autoComplete="off" data-lpignore="true" data-form-type="other"
+                  className={inputCls(errors.confirm)}
+                  style={{ WebkitTextSecurity: "disc", textSecurity: "disc" }}
+                />
                 {errors.confirm && <p className="text-red-400 text-xs mt-1">{errors.confirm}</p>}
               </div>
             )}

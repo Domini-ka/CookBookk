@@ -1,21 +1,8 @@
 import { Link } from "react-router-dom";
 import { toDataUrl } from "../utils/imageUtils";
 
-function difficulty(n) {
-  if (n <= 3) return { label: "Łatwy",  emoji: "🟢", bg: "bg-mint-100  text-mint-300"  };
-  if (n <= 7) return { label: "Średni", emoji: "🟡", bg: "bg-sky-100   text-sky-300"   };
-  return           { label: "Trudny", emoji: "🔴", bg: "bg-rose-100  text-rose-400"  };
-}
-
-function estimateTime(steps) {
-  const m = steps.length * 7;
-  return m < 10 ? "< 10 min" : `${Math.round(m / 5) * 5} min`;
-}
-
 export function RecipeCard({ recipe, currentUserId, onDelete, onToggleFavorite }) {
-  const diff   = difficulty(recipe.ingredients.length);
-  const time   = estimateTime(recipe.steps);
-  const imgSrc = toDataUrl(recipe.imageData, recipe.imageMime);
+  const imgSrc  = toDataUrl(recipe.imageData, recipe.imageMime);
   const isOwner = recipe.createdBy === currentUserId;
 
   return (
@@ -30,13 +17,11 @@ export function RecipeCard({ recipe, currentUserId, onDelete, onToggleFavorite }
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy" />
           ) : (
-            /* Placeholder gdy brak zdjęcia */
             <div className="w-full h-full flex items-center justify-center">
               <span className="text-5xl opacity-30">🍽️</span>
             </div>
           )}
 
-          {/* Category badge */}
           {recipe.category && (
             <span className="absolute top-3 left-3 bg-white/80 backdrop-blur-sm
                              text-sand-400 text-xs font-bold px-2.5 py-1 rounded-xl shadow-soft">
@@ -44,7 +29,6 @@ export function RecipeCard({ recipe, currentUserId, onDelete, onToggleFavorite }
             </span>
           )}
 
-          {/* Ulubione — widoczne dla wszystkich */}
           <button
             onClick={(e) => { e.preventDefault(); onToggleFavorite(recipe.id); }}
             className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm
@@ -66,15 +50,14 @@ export function RecipeCard({ recipe, currentUserId, onDelete, onToggleFavorite }
 
         {/* Meta chips */}
         <div className="flex flex-wrap gap-2 mb-4">
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-xl ${diff.bg}`}>
-            {diff.emoji} {diff.label}
-          </span>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-peach-100 text-peach-300">
-            ⏱ {time}
-          </span>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-vanilla-100 text-sand-400">
             🥘 {recipe.ingredients.length} skł.
           </span>
+          {recipe.ovenTemp && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-peach-100 text-peach-300">
+              🌡️ {recipe.ovenTemp}°C
+            </span>
+          )}
         </div>
 
         {/* Składniki preview */}
@@ -88,7 +71,9 @@ export function RecipeCard({ recipe, currentUserId, onDelete, onToggleFavorite }
               </li>
             ))}
             {recipe.ingredients.length > 3 && (
-              <li className="text-xs text-sand-300 italic">+{recipe.ingredients.length - 3} więcej…</li>
+              <li className="text-xs text-sand-300 italic">
+                +{recipe.ingredients.length - 3} więcej…
+              </li>
             )}
           </ul>
         </div>
@@ -101,8 +86,6 @@ export function RecipeCard({ recipe, currentUserId, onDelete, onToggleFavorite }
                        transition-all duration-200">
             Zobacz 🍽️
           </Link>
-
-          {/* Usuń — tylko właściciel */}
           {isOwner && (
             <button
               onClick={() => { if (window.confirm(`Usunąć "${recipe.title}"?`)) onDelete(recipe.id); }}

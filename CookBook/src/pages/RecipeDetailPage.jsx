@@ -5,17 +5,6 @@ import { useAuth } from "../hooks/useAuth";
 import { ImageUpload } from "../components/ImageUpload";
 import { toDataUrl } from "../utils/imageUtils";
 
-function difficulty(n) {
-  if (n <= 3) return { label: "Łatwy",  emoji: "🟢", bg: "bg-mint-100 text-mint-300"  };
-  if (n <= 7) return { label: "Średni", emoji: "🟡", bg: "bg-sky-100  text-sky-300"   };
-  return           { label: "Trudny", emoji: "🔴", bg: "bg-rose-100 text-rose-400"  };
-}
-
-function estimateTime(steps) {
-  const m = steps.length * 7;
-  return m < 10 ? "< 10 min" : `${Math.round(m / 5) * 5} min`;
-}
-
 export function RecipeDetailPage() {
   const { id }                              = useParams();
   const navigate                            = useNavigate();
@@ -34,9 +23,7 @@ export function RecipeDetailPage() {
     </div>
   );
 
-  const diff   = difficulty(recipe.ingredients.length);
-  const time   = estimateTime(recipe.steps);
-  const imgSrc = toDataUrl(recipe.imageData, recipe.imageMime);
+  const imgSrc  = toDataUrl(recipe.imageData, recipe.imageMime);
 
   const handleDelete = () => {
     if (window.confirm(`Usunąć "${recipe.title}"?`)) {
@@ -156,10 +143,17 @@ export function RecipeDetailPage() {
 
       {/* Meta chips */}
       <div className="flex flex-wrap gap-2 mb-8">
-        <span className={`text-sm font-bold px-4 py-2 rounded-2xl ${diff.bg}`}>{diff.emoji} {diff.label}</span>
-        <span className="text-sm font-bold px-4 py-2 rounded-2xl bg-peach-100 text-peach-300">⏱ {time}</span>
-        <span className="text-sm font-bold px-4 py-2 rounded-2xl bg-vanilla-100 text-sand-400">🥘 {recipe.ingredients.length} składników</span>
-        <span className="text-sm font-bold px-4 py-2 rounded-2xl bg-vanilla-100 text-sand-400">📋 {recipe.steps.length} kroków</span>
+        <span className="text-sm font-bold px-4 py-2 rounded-2xl bg-vanilla-100 text-sand-400">
+          🥘 {recipe.ingredients.length} składników
+        </span>
+        <span className="text-sm font-bold px-4 py-2 rounded-2xl bg-vanilla-100 text-sand-400">
+          📋 {recipe.steps.length} kroków
+        </span>
+        {recipe.ovenTemp && (
+          <span className="text-sm font-bold px-4 py-2 rounded-2xl bg-peach-100 text-peach-300">
+            🌡️ Piekarnik {recipe.ovenTemp}°C
+          </span>
+        )}
       </div>
 
       {/* Składniki + Kroki */}

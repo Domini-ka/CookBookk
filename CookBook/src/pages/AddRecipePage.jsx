@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useRecipesContext } from "../context/RecipesContext";
 import { ImageUpload } from "../components/ImageUpload";
 
-const EMPTY_FORM = { title: "", category: "", ingredients: "", steps: "" };
+const EMPTY_FORM = { title: "", category: "", ingredients: "", steps: "", ovenTemp: "" };
 
 const inputCls = (err) =>
   `w-full bg-white border-2 rounded-2xl px-4 py-3 text-cocoa-700 placeholder-sand-300
@@ -58,6 +58,7 @@ export function AddRecipePage() {
       category:    form.category.trim() || "Inne",
       ingredients: form.ingredients.split("\n").map((s) => s.trim()).filter(Boolean),
       steps:       form.steps.split("\n").map((s) => s.trim()).filter(Boolean),
+      ovenTemp:    form.ovenTemp ? Number(form.ovenTemp) : null,
       imageData:   imageData || null,
       imageMime:   imageMime || null,
     });
@@ -88,6 +89,22 @@ export function AddRecipePage() {
               <input id="category" name="category" value={form.category}
                 onChange={handleChange} placeholder="np. Zupy, Desery…"
                 className={inputCls(false)} />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <Field label="Temperatura pieczenia" hint="opcjonalne — °C">
+              <div className="relative">
+                <input
+                  id="ovenTemp" name="ovenTemp" type="number"
+                  min="50" max="300" step="5"
+                  value={form.ovenTemp}
+                  onChange={handleChange}
+                  placeholder="np. 180"
+                  className={inputCls(false) + " pr-12"}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sand-300 text-sm font-bold">°C</span>
+              </div>
             </Field>
           </div>
 
