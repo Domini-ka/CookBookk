@@ -30,7 +30,6 @@ export function AddRecipePage() {
   const [form, setForm]       = useState(EMPTY_FORM);
   const [errors, setErrors]   = useState({});
   const [saving, setSaving]   = useState(false);
-  // Zdjęcie
   const [imageData, setImageData] = useState(null);
   const [imageMime, setImageMime] = useState(null);
 
@@ -66,20 +65,21 @@ export function AddRecipePage() {
   };
 
   return (
-    <div className="max-w-2xl">
-      <div className="mb-8">
+    <div className="max-w-2xl mx-auto">
+      <div className="mb-6 sm:mb-8">
         <Link to="/" className="text-sand-300 hover:text-rose-400 text-sm font-semibold
                                transition-colors inline-flex items-center gap-1.5 mb-4">
           ← Wróć
         </Link>
-        <h1 className="font-display text-3xl text-cocoa-700">Nowy przepis ✏️</h1>
+        <h1 className="font-display text-2xl sm:text-3xl text-cocoa-700">Nowy przepis ✏️</h1>
         <p className="text-sand-400 text-sm mt-1">Wypełnij poniższe pola i zapisz przepis</p>
       </div>
 
-      <div className="bg-white rounded-3xl p-8 shadow-card border border-vanilla-200">
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-card border border-vanilla-200">
         <form onSubmit={handleSubmit} noValidate className="space-y-5">
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {/* Tytuł + Kategoria */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
             <Field label="Tytuł *" error={errors.title}>
               <input id="title" name="title" value={form.title}
                 onChange={handleChange} placeholder="np. Zupa pomidorowa"
@@ -92,34 +92,30 @@ export function AddRecipePage() {
             </Field>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <Field label="Temperatura pieczenia" hint="opcjonalne — °C">
-              <div className="relative">
-                <input
-                  id="ovenTemp" name="ovenTemp" type="number"
-                  min="50" max="300" step="5"
-                  value={form.ovenTemp}
-                  onChange={handleChange}
-                  placeholder="np. 180"
-                  className={inputCls(false) + " pr-12"}
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sand-300 text-sm font-bold">°C</span>
-              </div>
-            </Field>
-          </div>
+          {/* Temperatura pieczenia */}
+          <Field label="Temperatura pieczenia" hint="opcjonalne — °C">
+            <div className="relative max-w-xs">
+              <input
+                id="ovenTemp" name="ovenTemp" type="number"
+                min="50" max="300" step="5"
+                value={form.ovenTemp} onChange={handleChange}
+                placeholder="np. 180"
+                className={inputCls(false) + " pr-12"}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sand-300 text-sm font-bold">°C</span>
+            </div>
+          </Field>
 
-          {/* Zdjęcie z pliku */}
+          {/* Zdjęcie */}
           <Field label="Zdjęcie" hint="opcjonalne">
             <ImageUpload
               currentDataUrl={null}
-              onImageReady={({ imageData: d, imageMime: m }) => {
-                setImageData(d);
-                setImageMime(m);
-              }}
+              onImageReady={({ imageData: d, imageMime: m }) => { setImageData(d); setImageMime(m); }}
               onClear={() => { setImageData(null); setImageMime(null); }}
             />
           </Field>
 
+          {/* Składniki */}
           <Field label="Składniki *" hint="każdy w nowej linii" error={errors.ingredients}>
             <textarea id="ingredients" name="ingredients" value={form.ingredients}
               onChange={handleChange} rows={5}
@@ -127,6 +123,7 @@ export function AddRecipePage() {
               className={inputCls(errors.ingredients) + " resize-none leading-relaxed"} />
           </Field>
 
+          {/* Kroki */}
           <Field label="Kroki przygotowania *" hint="każdy krok w nowej linii" error={errors.steps}>
             <textarea id="steps" name="steps" value={form.steps}
               onChange={handleChange} rows={6}
@@ -134,16 +131,18 @@ export function AddRecipePage() {
               className={inputCls(errors.steps) + " resize-none leading-relaxed"} />
           </Field>
 
-          <div className="flex gap-3 pt-2">
+          {/* Przyciski */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button type="submit" disabled={saving}
               className="flex-1 bg-rose-300 hover:bg-rose-400 text-white font-bold py-3.5 rounded-2xl
                          transition-all duration-200 shadow-soft hover:shadow-card
-                         disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                         disabled:opacity-50 disabled:cursor-not-allowed text-sm order-1 sm:order-none">
               {saving ? "Zapisuję…" : "Zapisz przepis 🌸"}
             </button>
             <button type="button" onClick={() => navigate("/")}
               className="px-6 py-3.5 rounded-2xl border-2 border-vanilla-200 text-sand-400
-                         hover:text-cocoa-700 hover:border-sand-200 transition-all duration-200 font-bold text-sm">
+                         hover:text-cocoa-700 hover:border-sand-200 transition-all duration-200
+                         font-bold text-sm order-2 sm:order-none">
               Anuluj
             </button>
           </div>
