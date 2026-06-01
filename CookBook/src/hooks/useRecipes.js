@@ -19,7 +19,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const API         = "http://localhost:3001";
+const API         = "https://cookbookk.onrender.com";
 const RECIPES_KEY = "cookbook_recipes";
 const QUEUE_KEY   = "cookbook_queue";
 const DELETED_KEY = "cookbook_deleted";
@@ -104,6 +104,8 @@ export function useRecipes({ getValidToken }) {
   const drainQueue = useCallback(async () => {
     const queue      = ls.get(QUEUE_KEY,   []);
     const deletedIds = ls.get(DELETED_KEY, []);
+
+    if (queue.length === 0 && deletedIds.length === 0) return true;
 
     // Usuń zakolejkowane
     for (const id of deletedIds) {
@@ -197,10 +199,12 @@ export function useRecipes({ getValidToken }) {
           setSynced(true);
           return res.data;
         }
-      } catch {}
+      } catch {
+        // Network error — fall through to enqueue
+      }
     }
 
-    // Offline — zakolejkuj
+    // Offline LUB request failował — zakolejkuj
     enqueue({ type: "add", payload: recipe });
     return recipe;
   }, [enqueue]);
@@ -214,10 +218,18 @@ export function useRecipes({ getValidToken }) {
     if (navigator.onLine) {
       try {
         const res = await api.current.put(`/items/${id}`, { ...changes, updatedAt });
-        if (res.ok) { setSynced(true); return; }
-      } catch {}
+        if (res.ok) {
+          // Zastąp danymi z serwera
+          setRecipes((prev) => prev.map((r) => r.id === id ? res.data : r));
+          setSynced(true);
+          return;
+        }
+      } catch {
+        // Network error — fall through to enqueue
+      }
     }
 
+    // Offline LUB request failował — zakolejkuj
     enqueue({ type: "update", payload: { id, ...changes, updatedAt } });
   }, [enqueue]);
 
@@ -228,11 +240,16 @@ export function useRecipes({ getValidToken }) {
     if (navigator.onLine) {
       try {
         const res = await api.current.del(`/items/${id}`);
-        if (res.ok) { setSynced(true); return; }
-      } catch {}
+        if (res.ok) {
+          setSynced(true);
+          return;
+        }
+      } catch {
+        // Network error — fall through to enqueue
+      }
     }
 
-    // Offline — zapamiętaj id
+    // Offline LUB request failował — zapamiętaj id i zakolejkuj
     const deleted = ls.get(DELETED_KEY, []);
     if (!deleted.includes(id)) ls.set(DELETED_KEY, [...deleted, id]);
     enqueue({ type: "delete", payload: { id } });

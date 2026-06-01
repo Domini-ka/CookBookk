@@ -34,7 +34,7 @@ function validateRecipeBody(body) {
 // ── GET /items ────────────────────────────────────────────────────────────────
 router.get("/", (req, res) => {
   const { category, q } = req.query;
-  let list = store.getAll();
+  let list = store.getByUser(req.user.id);
   if (category) list = list.filter((r) => r.category?.toLowerCase() === category.toLowerCase());
   if (q) {
     const term = q.toLowerCase();

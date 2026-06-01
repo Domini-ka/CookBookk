@@ -43,11 +43,6 @@ app.use("/auth", authRouter);
 // Chronione — wymagają JWT
 app.use("/items", requireAuth, itemsRouter);
 
-app.post("/sync", requireAuth, (req, res, next) => {
-  req.url = "/sync";
-  itemsRouter(req, res, next);
-});
-
 // ── 404 ───────────────────────────────────────────────────────────────────────
 
 app.use((_req, res) => {
@@ -69,14 +64,16 @@ app.listen(PORT, () => {
   console.log(`   CORS dozwolony dla: ${CLIENT_URL}`);
   console.log();
   console.log("Endpointy publiczne:");
-  console.log(`  POST https://cookbookk.onrender.com/auth/register`);
-  console.log(`  POST https://cookbookk.onrender.com/auth/login`);
-  console.log(`  GET  https://cookbookk.onrender.com/auth/me`);
+  console.log(`  POST /auth/register`);
+  console.log(`  POST /auth/login`);
+  console.log(`  POST /auth/refresh`);
+  console.log(`  POST /auth/logout`);
+  console.log(`  GET  /auth/me`);
   console.log();
   console.log("Endpointy chronione (wymagają Bearer token):");
-  console.log(`  GET    https://cookbookk.onrender.com/items`);
-  console.log(`  POST   https://cookbookk.onrender.com/items`);
-  console.log(`  PUT    https://cookbookk.onrender.com/items/:id`);
-  console.log(`  DELETE https://cookbookk.onrender.com/items/:id`);
-  console.log(`  POST   https://cookbookk.onrender.com/sync`);
+  console.log(`  GET    /items`);
+  console.log(`  POST   /items`);
+  console.log(`  PUT    /items/:id`);
+  console.log(`  DELETE /items/:id`);
+  console.log(`  POST   /items/sync`);
 });
