@@ -9,7 +9,7 @@ const path = require("path");
 const JWT_SECRET =
   process.env.JWT_SECRET ?? "cookbook-dev-secret-change-in-production";
 
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "15m";
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "7d";
 
 // Refresh token — długo żyjący, przechowywany w bazie
 const REFRESH_SECRET =

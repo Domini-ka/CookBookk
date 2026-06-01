@@ -83,61 +83,32 @@ export function useRecipes({ getValidToken }) {
   useEffect(() => { ls.set(RECIPES_KEY, recipes); }, [recipes]);
   useEffect(() => { ls.set(SYNCED_KEY, synced);   }, [synced]);
 
-  // ── Pobierz wszystko z serwera ─────────────────────────────────────────────
-  const fetchFromServer = useCallback(async () => {
-    try {
-      const res = await api.current.get("/items");
-      if (res.ok) {
-        setRecipes(res.data);
-        setSynced(true);
-        ls.set(QUEUE_KEY,   []);
-        ls.set(DELETED_KEY, []);
-        return true;
-      }
-      // 401 = token wygasł i refresh się nie powiódł → useAuth sam wyloguje
-      if (res.error && res.error.includes("Token")) return false;
-    } catch {}
-    return false;
-  }, []);
-
-  // ── Odtwórz kolejkę offline ────────────────────────────────────────────────
-  const drainQueue = useCallback(async () => {
-    const queue      = ls.get(QUEUE_KEY,   []);
-    const deletedIds = ls.get(DELETED_KEY, []);
-
-    if (queue.length === 0 && deletedIds.length === 0) return true;
-
-    // Usuń zakolejkowane
-    for (const id of deletedIds) {
-      try { await api.current.del(`/items/${id}`); } catch { return false; }
-    }
-
-    // Odtwórz add/update
-    for (const op of queue) {
-      try {
-        if (op.type === "add")    await api.current.post("/items", op.payload);
-        if (op.type === "update") await api.current.put(`/items/${op.payload.id}`, op.payload);
-      } catch { return false; }
-    }
-
-    ls.set(QUEUE_KEY,   []);
-    ls.set(DELETED_KEY, []);
-    return true;
-  }, []);
-
   // ── Pełny sync (kolejka → fetch) ──────────────────────────────────────────
   const syncWithServer = useCallback(async () => {
     if (syncingRef.current) return;
     syncingRef.current = true;
     setSyncing(true);
     try {
-      await drainQueue();
-      await fetchFromServer();
+      // Pobieramy aktualne dane z localStorage by wysłać na serwer (odporność na czyszczenie DB)
+      const currentRecipes = ls.get(RECIPES_KEY, []);
+      const deletedIds = ls.get(DELETED_KEY, []);
+      
+      const res = await api.current.post("/items/sync", { recipes: currentRecipes, deletedIds });
+      if (res.ok) {
+        setRecipes(res.data);
+        setSynced(true);
+        ls.set(QUEUE_KEY,   []);
+        ls.set(DELETED_KEY, []);
+      } else if (res.error && res.error.includes("Token")) {
+        // Token wygasł, useAuth go odświeży lub wyloguje
+      }
+    } catch {
+      // Błąd sieci, spróbuj ponownie później
     } finally {
       syncingRef.current = false;
       setSyncing(false);
     }
-  }, [drainQueue, fetchFromServer]);
+  }, []);
 
   // ── Online/offline listeners ───────────────────────────────────────────────
   useEffect(() => {
@@ -160,10 +131,10 @@ export function useRecipes({ getValidToken }) {
   // ── Polling co 30s — żeby widzieć zmiany z innych urządzeń ───────────────
   useEffect(() => {
     const id = setInterval(() => {
-      if (navigator.onLine && !syncingRef.current) fetchFromServer();
+      if (navigator.onLine && !syncingRef.current) syncWithServer();
     }, POLL_INTERVAL);
     return () => clearInterval(id);
-  }, [fetchFromServer]);
+  }, [syncWithServer]);
 
   // ── Enqueue helper ─────────────────────────────────────────────────────────
   const enqueue = useCallback((op) => {
