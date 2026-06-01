@@ -1,7 +1,7 @@
 /**
- * context/RecipesContext.jsx
- * Udostępnia stan useRecipes wszystkim stronom przez Context —
- * bez przekazywania propsów przez każdy poziom.
+ * RecipesContext.jsx
+ * Przekazuje getValidToken z useAuth do useRecipes.
+ * Bez tego hook nie ma tokena i każdy request kończy się 401.
  */
 
 import { createContext, useContext } from "react";
@@ -9,8 +9,9 @@ import { useRecipes } from "../hooks/useRecipes";
 
 const RecipesContext = createContext(null);
 
-export function RecipesProvider({ children }) {
-  const value = useRecipes();
+// getValidToken przekazujemy z App.jsx przez props
+export function RecipesProvider({ getValidToken, children }) {
+  const value = useRecipes({ getValidToken });
   return (
     <RecipesContext.Provider value={value}>
       {children}

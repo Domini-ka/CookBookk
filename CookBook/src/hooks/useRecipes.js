@@ -1,155 +1,146 @@
 /**
  * useRecipes.js
- * Custom hook z obsługą offline/online sync.
+ * Sync między urządzeniami + obsługa offline.
  *
- * Algorytm:
- *  1. Każda mutacja (add/update/delete) zapisuje się w localStorage od razu.
- *  2. Jeśli jesteśmy online → wysyłamy do backendu natychmiast.
- *  3. Jeśli offline → operacja trafia do kolejki (pendingQueue w localStorage).
- *  4. Gdy wraca internet → kolejka jest odtwarzana po kolei, potem robimy
- *     pełny /sync żeby wyrównać stan z serwerem.
- *  5. Stan `synced` (bool) informuje UI czy lokalne dane są zsynchronizowane.
+ * Jak działa sync:
+ *  ONLINE:
+ *   - add/update/delete → natychmiast do serwera → serwer zwraca dane → aktualizuj UI
+ *   - co 30 sekund → GET /items → odśwież z serwera (żeby widzieć zmiany z innych urządzeń)
+ *
+ *  OFFLINE:
+ *   - operacje zapisują się lokalnie w localStorage
+ *   - trafiają do kolejki pending
+ *
+ *  POWRÓT INTERNETU:
+ *   - kolejka odtwarzana kolejno na serwerze
+ *   - pełny GET /items → zastępuje lokalne dane danymi z serwera
+ *   - synced = true
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const API = "https://cookbookk.onrender.com";
-const RECIPES_KEY  = "cookbook_recipes";
-const QUEUE_KEY    = "cookbook_queue";    // operacje czekające na sync
-const DELETED_KEY  = "cookbook_deleted";  // id usunięte offline
-const SYNCED_KEY   = "cookbook_synced";   // bool
+const API         = "http://localhost:3001";
+const RECIPES_KEY = "cookbook_recipes";
+const QUEUE_KEY   = "cookbook_queue";
+const DELETED_KEY = "cookbook_deleted";
+const SYNCED_KEY  = "cookbook_synced";
 
-// ─── localStorage helpers ────────────────────────────────────────────────────
+const POLL_INTERVAL = 30_000; // co 30 sekund odśwież z serwera
+
+// ─── localStorage ────────────────────────────────────────────────────────────
 
 const ls = {
-  get(key, fallback) {
-    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
-    catch { return fallback; }
-  },
-  set(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
-  },
+  get: (key, fb) => { try { return JSON.parse(localStorage.getItem(key)) ?? fb; } catch { return fb; } },
+  set: (key, v)  => { try { localStorage.setItem(key, JSON.stringify(v)); } catch {} },
 };
 
-// ─── API calls ───────────────────────────────────────────────────────────────
+// ─── API (używa getValidToken do auto-refresh JWT) ───────────────────────────
 
-function authHeaders() {
-  const token = localStorage.getItem("cookbook_token");
+function makeApi(getValidToken) {
+  async function headers() {
+    const token = await getValidToken();
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }
+
   return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    async get(path) {
+      const r = await fetch(`${API}${path}`, { headers: await headers() });
+      return r.json();
+    },
+    async post(path, body) {
+      const r = await fetch(`${API}${path}`, { method: "POST", headers: await headers(), body: JSON.stringify(body) });
+      return r.json();
+    },
+    async put(path, body) {
+      const r = await fetch(`${API}${path}`, { method: "PUT", headers: await headers(), body: JSON.stringify(body) });
+      return r.json();
+    },
+    async del(path) {
+      const r = await fetch(`${API}${path}`, { method: "DELETE", headers: await headers() });
+      return r.json();
+    },
   };
 }
 
-const api = {
-  async post(path, body) {
-    const r = await fetch(`${API}${path}`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify(body),
-    });
-    return r.json();
-  },
-  async put(path, body) {
-    const r = await fetch(`${API}${path}`, {
-      method: "PUT",
-      headers: authHeaders(),
-      body: JSON.stringify(body),
-    });
-    return r.json();
-  },
-  async del(path) {
-    const r = await fetch(`${API}${path}`, {
-      method: "DELETE",
-      headers: authHeaders(),
-    });
-    return r.json();
-  },
-  async sync(recipes, deletedIds = []) {
-    const r = await fetch(`${API}/sync`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({ recipes, deletedIds }),
-    });
-    return r.json();
-  },
-};
-
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
-export function useRecipes() {
-  const [recipes, setRecipes]   = useState(() => ls.get(RECIPES_KEY, []));
+export function useRecipes({ getValidToken }) {
+  const [recipes,  setRecipes]  = useState(() => ls.get(RECIPES_KEY, []));
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
-  const [synced, setSynced]     = useState(() => ls.get(SYNCED_KEY, true));
-  const [syncing, setSyncing]   = useState(false);
+  const [synced,   setSynced]   = useState(false);
+  const [syncing,  setSyncing]  = useState(false);
 
-  // ref żeby drainQueue miało zawsze świeży stan recipes bez zależności cyklicznych
-  const recipesRef = useRef(recipes);
-  recipesRef.current = recipes;
+  const api        = useRef(makeApi(getValidToken));
+  const syncingRef = useRef(false);
 
-  // ── Persist to localStorage ─────────────────────────────────────────────────
+  // Aktualizuj api gdy zmienia się getValidToken
+  useEffect(() => { api.current = makeApi(getValidToken); }, [getValidToken]);
+
+  // Persist lokalnie
   useEffect(() => { ls.set(RECIPES_KEY, recipes); }, [recipes]);
-  useEffect(() => { ls.set(SYNCED_KEY, synced); }, [synced]);
+  useEffect(() => { ls.set(SYNCED_KEY, synced);   }, [synced]);
 
-  // ── Enqueue an operation when offline ──────────────────────────────────────
-  const enqueue = useCallback((op) => {
-    const queue = ls.get(QUEUE_KEY, []);
-    // Deduplicate: collapse same type+id into one entry
-    const filtered = queue.filter(
-      (q) => !(q.payload?.id === op.payload?.id && q.type === op.type)
-    );
-    ls.set(QUEUE_KEY, [...filtered, op]);
-  }, []);
-
-  // ── Drain queue → replay each op against backend ───────────────────────────
-  const drainQueue = useCallback(async () => {
-    const queue = ls.get(QUEUE_KEY, []);
-    if (!queue.length) return true;
-
-    for (const op of queue) {
-      try {
-        if (op.type === "add")    await api.post("/items", op.payload);
-        if (op.type === "update") await api.put(`/items/${op.payload.id}`, op.payload);
-        if (op.type === "delete") await api.del(`/items/${op.payload.id}`);
-      } catch {
-        return false; // still offline — stop, leave queue intact
-      }
-    }
-
-    ls.set(QUEUE_KEY, []);
-    return true;
-  }, []);
-
-  // ── Full sync: drain queue → POST /sync → replace local state ──────────────
-  const syncWithServer = useCallback(async () => {
-    if (syncing) return;
-    setSyncing(true);
+  // ── Pobierz wszystko z serwera ─────────────────────────────────────────────
+  const fetchFromServer = useCallback(async () => {
     try {
-      const drained = await drainQueue();
-      if (!drained) return;
-
-      const deletedIds = ls.get(DELETED_KEY, []);
-      const res = await api.sync(recipesRef.current, deletedIds);
+      const res = await api.current.get("/items");
       if (res.ok) {
         setRecipes(res.data);
         setSynced(true);
-        ls.set(DELETED_KEY, []); // wyczyść po udanym sync
+        ls.set(QUEUE_KEY,   []);
+        ls.set(DELETED_KEY, []);
+        return true;
       }
-    } catch {
-      // Server unreachable — try again on next online event
+      // 401 = token wygasł i refresh się nie powiódł → useAuth sam wyloguje
+      if (res.error && res.error.includes("Token")) return false;
+    } catch {}
+    return false;
+  }, []);
+
+  // ── Odtwórz kolejkę offline ────────────────────────────────────────────────
+  const drainQueue = useCallback(async () => {
+    const queue      = ls.get(QUEUE_KEY,   []);
+    const deletedIds = ls.get(DELETED_KEY, []);
+
+    // Usuń zakolejkowane
+    for (const id of deletedIds) {
+      try { await api.current.del(`/items/${id}`); } catch { return false; }
+    }
+
+    // Odtwórz add/update
+    for (const op of queue) {
+      try {
+        if (op.type === "add")    await api.current.post("/items", op.payload);
+        if (op.type === "update") await api.current.put(`/items/${op.payload.id}`, op.payload);
+      } catch { return false; }
+    }
+
+    ls.set(QUEUE_KEY,   []);
+    ls.set(DELETED_KEY, []);
+    return true;
+  }, []);
+
+  // ── Pełny sync (kolejka → fetch) ──────────────────────────────────────────
+  const syncWithServer = useCallback(async () => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    setSyncing(true);
+    try {
+      await drainQueue();
+      await fetchFromServer();
     } finally {
+      syncingRef.current = false;
       setSyncing(false);
     }
-  }, [drainQueue, syncing]);
+  }, [drainQueue, fetchFromServer]);
 
-  // ── Online / offline listeners ──────────────────────────────────────────────
+  // ── Online/offline listeners ───────────────────────────────────────────────
   useEffect(() => {
-    const goOnline = () => {
-      setIsOnline(true);
-      syncWithServer();
-    };
-    const goOffline = () => setIsOnline(false);
-
+    const goOnline  = () => { setIsOnline(true);  syncWithServer(); };
+    const goOffline = () => { setIsOnline(false); setSynced(false); };
     window.addEventListener("online",  goOnline);
     window.addEventListener("offline", goOffline);
     return () => {
@@ -158,88 +149,94 @@ export function useRecipes() {
     };
   }, [syncWithServer]);
 
-  // ── On mount: if online, sync immediately ──────────────────────────────────
+  // ── Sync przy montowaniu ───────────────────────────────────────────────────
   useEffect(() => {
     if (navigator.onLine) syncWithServer();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── CRUD ─────────────────────────────────────────────────────────────────
+  // ── Polling co 30s — żeby widzieć zmiany z innych urządzeń ───────────────
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (navigator.onLine && !syncingRef.current) fetchFromServer();
+    }, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [fetchFromServer]);
+
+  // ── Enqueue helper ─────────────────────────────────────────────────────────
+  const enqueue = useCallback((op) => {
+    const queue    = ls.get(QUEUE_KEY, []);
+    const filtered = queue.filter((q) => !(q.payload?.id === op.payload?.id && q.type === op.type));
+    ls.set(QUEUE_KEY, [...filtered, op]);
+  }, []);
+
+  // ─── CRUD ──────────────────────────────────────────────────────────────────
 
   const addRecipe = useCallback(async (data) => {
     const recipe = {
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      category: "Inne",
+      id:          crypto.randomUUID(),
+      createdAt:   new Date().toISOString(),
+      updatedAt:   new Date().toISOString(),
+      category:    "Inne",
       ingredients: [],
-      steps: [],
+      steps:       [],
+      favorite:    false,
       ...data,
     };
 
-    // Optimistic update — UI reaguje natychmiast
+    // Optimistic update
     setRecipes((prev) => [...prev, recipe]);
     setSynced(false);
 
-    if (isOnline) {
+    if (navigator.onLine) {
       try {
-        const res = await api.post("/items", recipe);
+        const res = await api.current.post("/items", recipe);
         if (res.ok) {
-          setRecipes((prev) => prev.map((r) => (r.id === recipe.id ? res.data : r)));
+          // Zastąp optimistic rekord danymi z serwera
+          setRecipes((prev) => prev.map((r) => r.id === recipe.id ? res.data : r));
           setSynced(true);
           return res.data;
         }
       } catch {}
     }
 
+    // Offline — zakolejkuj
     enqueue({ type: "add", payload: recipe });
     return recipe;
-  }, [isOnline, enqueue]);
+  }, [enqueue]);
 
   const updateRecipe = useCallback(async (id, changes) => {
     const updatedAt = new Date().toISOString();
-    setRecipes((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...changes, updatedAt } : r))
-    );
+
+    setRecipes((prev) => prev.map((r) => r.id === id ? { ...r, ...changes, updatedAt } : r));
     setSynced(false);
 
-    const payload = { id, ...changes, updatedAt };
-
-    if (isOnline) {
+    if (navigator.onLine) {
       try {
-        const res = await api.put(`/items/${id}`, payload);
+        const res = await api.current.put(`/items/${id}`, { ...changes, updatedAt });
         if (res.ok) { setSynced(true); return; }
       } catch {}
     }
 
-    enqueue({ type: "update", payload });
-  }, [isOnline, enqueue]);
+    enqueue({ type: "update", payload: { id, ...changes, updatedAt } });
+  }, [enqueue]);
 
   const deleteRecipe = useCallback(async (id) => {
     setRecipes((prev) => prev.filter((r) => r.id !== id));
     setSynced(false);
 
-    if (isOnline) {
+    if (navigator.onLine) {
       try {
-        const res = await api.del(`/items/${id}`);
+        const res = await api.current.del(`/items/${id}`);
         if (res.ok) { setSynced(true); return; }
       } catch {}
     }
 
-    // Zapamiętaj id do wysłania przy następnym sync
+    // Offline — zapamiętaj id
     const deleted = ls.get(DELETED_KEY, []);
     if (!deleted.includes(id)) ls.set(DELETED_KEY, [...deleted, id]);
     enqueue({ type: "delete", payload: { id } });
-  }, [isOnline, enqueue]);
+  }, [enqueue]);
 
-  return {
-    recipes,
-    addRecipe,
-    updateRecipe,
-    deleteRecipe,
-    isOnline,   // czy przeglądarka ma sieć
-    synced,     // czy lokalne dane === serwer
-    syncing,    // trwa właśnie sync
-    syncNow: syncWithServer, // ręczny trigger
-  };
+  return { recipes, addRecipe, updateRecipe, deleteRecipe, isOnline, synced, syncing, syncNow: syncWithServer };
 }
