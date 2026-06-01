@@ -147,6 +147,7 @@ const store = {
             steps:       JSON.stringify(Array.isArray(c.steps)       ? c.steps       : []),
             imageData:   c.imageData   ?? null,
             imageMime:   c.imageMime   ?? null,
+            ovenTemp:    c.ovenTemp    ?? null,
             favorite:    c.favorite    ? 1 : 0,
             createdBy:   userId,
             now:         c.createdAt   ?? now,
@@ -163,6 +164,7 @@ const store = {
               steps:       JSON.stringify(Array.isArray(c.steps)       ? c.steps       : JSON.parse(existing.steps)),
               imageData:   c.imageData   ?? existing.image_data,
               imageMime:   c.imageMime   ?? existing.image_mime,
+              ovenTemp:    c.ovenTemp    ?? existing.oven_temp,
               favorite:    c.favorite    ? 1 : 0,
               now:         c.updatedAt,
             });
