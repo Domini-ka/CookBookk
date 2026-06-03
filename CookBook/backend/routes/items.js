@@ -19,7 +19,7 @@ function validateRecipeBody(body) {
   return errors;
 }
 
-// GET /items — zwraca WSZYSTKIE przepisy (wspólne dla wszystkich użytkowników)
+// GET /items — zwraca wszystkie przepisy, wspólne dla wszystkich użytkowników
 router.get("/", (req, res) => {
   const { category, q } = req.query;
   let list = store.getAll();
