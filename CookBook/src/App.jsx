@@ -11,7 +11,7 @@ import { RecipeDetailPage } from "./pages/RecipeDetailPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
 export default function App() {
-  const { user, token, login, register, logout, loading, error, getValidToken } = useAuth();
+  const { user, token, login, register, logout, loading, error, isAuthLoading, getValidToken } = useAuth();
 
   return (
     <BrowserRouter>
@@ -28,7 +28,7 @@ export default function App() {
         <Route
           path="/*"
           element={
-            <ProtectedRoute user={user}>
+            <ProtectedRoute user={user} isAuthLoading={isAuthLoading}>
               {/*
                 getValidToken przekazujemy do RecipesProvider
                 żeby useRecipes mógł dołączyć Bearer token do każdego requesta
