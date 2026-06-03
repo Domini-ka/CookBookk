@@ -1,14 +1,3 @@
-/**
- * routes/items.js
- * Wszystkie endpointy wymagają req.user (ustawianego przez requireAuth).
- *
- * Zdjęcie przesyłane jako base64 w JSON body:
- *   { imageData: "<base64>", imageMime: "image/jpeg" }
- * Frontend konwertuje File → base64 przed wysłaniem.
- *
- * Właściciel przepisu (createdBy) jest sprawdzany przy PUT i DELETE.
- */
-
 const { Router } = require("express");
 const store = require("../store");
 
@@ -25,16 +14,15 @@ function validateRecipeBody(body) {
     errors.push("Pole `ingredients` musi być tablicą.");
   if (body.steps !== undefined && !Array.isArray(body.steps))
     errors.push("Pole `steps` musi być tablicą.");
-  // Walidacja obrazu — jeśli podany, musi mieć mime
   if (body.imageData && !body.imageMime)
     errors.push("Pole `imageMime` jest wymagane gdy podano `imageData`.");
   return errors;
 }
 
-// ── GET /items ────────────────────────────────────────────────────────────────
+// GET /items — zwraca WSZYSTKIE przepisy (wspólne dla wszystkich użytkowników)
 router.get("/", (req, res) => {
   const { category, q } = req.query;
-  let list = store.getByUser(req.user.id);
+  let list = store.getAll();
   if (category) list = list.filter((r) => r.category?.toLowerCase() === category.toLowerCase());
   if (q) {
     const term = q.toLowerCase();
@@ -46,7 +34,7 @@ router.get("/", (req, res) => {
   ok(res, list);
 });
 
-// ── POST /items ───────────────────────────────────────────────────────────────
+// POST /items
 router.post("/", (req, res) => {
   const errors = validateRecipeBody(req.body);
   if (errors.length) return fail(res, errors.join(" "));
@@ -54,36 +42,25 @@ router.post("/", (req, res) => {
   ok(res, recipe, 201);
 });
 
-// ── PUT /items/:id ────────────────────────────────────────────────────────────
+// PUT /items/:id
 router.put("/:id", (req, res) => {
   const existing = store.get(req.params.id);
   if (!existing) return fail(res, "Nie znaleziono przepisu.", 404);
-
   if (req.body.title !== undefined) {
     const errors = validateRecipeBody({ ...existing, ...req.body });
     if (errors.length) return fail(res, errors.join(" "));
   }
-
   const result = store.update(req.params.id, req.body, req.user.id);
-  if (result === "forbidden") return fail(res, "Brak uprawnień do edycji tego przepisu.", 403);
+  if (result === "forbidden") return fail(res, "Brak uprawnień.", 403);
   ok(res, result);
 });
 
-// ── DELETE /items/:id ─────────────────────────────────────────────────────────
+// DELETE /items/:id
 router.delete("/:id", (req, res) => {
   const result = store.remove(req.params.id, req.user.id);
   if (result === false)       return fail(res, "Nie znaleziono przepisu.", 404);
-  if (result === "forbidden") return fail(res, "Brak uprawnień do usunięcia tego przepisu.", 403);
+  if (result === "forbidden") return fail(res, "Brak uprawnień.", 403);
   ok(res, { id: req.params.id });
-});
-
-// ── POST /sync ────────────────────────────────────────────────────────────────
-router.post("/sync", (req, res) => {
-  const { recipes, deletedIds = [] } = req.body;
-  if (!Array.isArray(recipes))   return fail(res, "Body musi zawierać pole `recipes` (tablica).");
-  if (!Array.isArray(deletedIds)) return fail(res, "Pole `deletedIds` musi być tablicą.");
-  const merged = store.sync(recipes, deletedIds, req.user.id);
-  ok(res, merged);
 });
 
 module.exports = router;

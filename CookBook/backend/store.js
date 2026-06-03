@@ -29,8 +29,6 @@ function toRow(recipe) {
 const stmts = {
   getAll: db.prepare("SELECT * FROM recipes ORDER BY created_at DESC"),
 
-  getByUser: db.prepare("SELECT * FROM recipes WHERE created_by = ? ORDER BY created_at DESC"),
-
   getOne: db.prepare("SELECT * FROM recipes WHERE id = ?"),
 
   insert: db.prepare(`
@@ -64,10 +62,6 @@ const stmts = {
 const store = {
   getAll() {
     return stmts.getAll.all().map(toRow);
-  },
-
-  getByUser(userId) {
-    return stmts.getByUser.all(userId).map(toRow);
   },
 
   get(id) {
@@ -147,7 +141,6 @@ const store = {
             steps:       JSON.stringify(Array.isArray(c.steps)       ? c.steps       : []),
             imageData:   c.imageData   ?? null,
             imageMime:   c.imageMime   ?? null,
-            ovenTemp:    c.ovenTemp    ?? null,
             favorite:    c.favorite    ? 1 : 0,
             createdBy:   userId,
             now:         c.createdAt   ?? now,
@@ -157,14 +150,13 @@ const store = {
           const clientNewer = new Date(c.updatedAt ?? 0) > new Date(existing.updated_at ?? 0);
           if (clientNewer && existing.created_by === userId) {
             stmts.update.run({
-              id: c.id,
+              id,
               title:       c.title       ?? existing.title,
               category:    c.category    ?? existing.category,
               ingredients: JSON.stringify(Array.isArray(c.ingredients) ? c.ingredients : JSON.parse(existing.ingredients)),
               steps:       JSON.stringify(Array.isArray(c.steps)       ? c.steps       : JSON.parse(existing.steps)),
               imageData:   c.imageData   ?? existing.image_data,
               imageMime:   c.imageMime   ?? existing.image_mime,
-              ovenTemp:    c.ovenTemp    ?? existing.oven_temp,
               favorite:    c.favorite    ? 1 : 0,
               now:         c.updatedAt,
             });
@@ -174,7 +166,8 @@ const store = {
     });
 
     syncAll();
-    return stmts.getByUser.all(userId).map(toRow);
+    // Zwróć WSZYSTKIE przepisy (wspólne), nie tylko użytkownika
+    return stmts.getAll.all().map(toRow);
   },
 };
 
