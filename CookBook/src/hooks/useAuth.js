@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 
-const API           = "https://cookbookk.onrender.com";
+const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const TOKEN_KEY     = "cookbook_token";
 const REFRESH_KEY   = "cookbook_refresh_token";
 const USER_KEY      = "cookbook_user";

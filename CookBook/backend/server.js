@@ -6,7 +6,7 @@
  *
  * Zmienne środowiskowe:
  *   PORT        – domyślnie 3001
- *   CLIENT_URL  – dozwolony origin CORS, domyślnie https://cookbookk.onrender.com
+ *   CLIENT_URL  – dozwolony origin CORS, domyślnie http://localhost:5173
  *   JWT_SECRET  – sekret JWT (ustaw w produkcji!)
  */
 
@@ -19,7 +19,7 @@ const { requireAuth } = require("./middleware/auth");
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
-const CLIENT_URL = process.env.CLIENT_URL ?? "https://coookbook.netlify.app";
+const CLIENT_URL = process.env.CLIENT_URL ?? "http://localhost:5173";
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 

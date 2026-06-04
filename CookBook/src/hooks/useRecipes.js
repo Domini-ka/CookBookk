@@ -19,7 +19,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const API         = "https://cookbookk.onrender.com";
+const API         = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const RECIPES_KEY = "cookbook_recipes";
 const QUEUE_KEY   = "cookbook_queue";
 const DELETED_KEY = "cookbook_deleted";
@@ -89,21 +89,32 @@ export function useRecipes({ getValidToken }) {
     syncingRef.current = true;
     setSyncing(true);
     try {
-      // Pobieramy aktualne dane z localStorage by wysłać na serwer (odporność na czyszczenie DB)
       const currentRecipes = ls.get(RECIPES_KEY, []);
       const deletedIds = ls.get(DELETED_KEY, []);
       
+      // POPRAWKA: Jeśli lokalnie nie mamy przepisów, najpierw pobierzmy je z serwera (GET) 
+      // zamiast nadpisywać serwer pustą tablicą
+      if (currentRecipes.length === 0) {
+        const res = await api.current.get("/items");
+        if (res.ok) {
+          setRecipes(res.data);
+          setSynced(true);
+          syncingRef.current = false;
+          setSyncing(false);
+          return;
+        }
+      }
+
+      // Jeśli mamy przepisy lokalnie, wykonaj normalny sync (Twój stary kod)
       const res = await api.current.post("/items/sync", { recipes: currentRecipes, deletedIds });
       if (res.ok) {
         setRecipes(res.data);
         setSynced(true);
         ls.set(QUEUE_KEY,   []);
         ls.set(DELETED_KEY, []);
-      } else if (res.error && res.error.includes("Token")) {
-        // Token wygasł, useAuth go odświeży lub wyloguje
       }
-    } catch {
-      // Błąd sieci, spróbuj ponownie później
+    } catch (err) {
+      console.error("Błąd synchronizacji:", err);
     } finally {
       syncingRef.current = false;
       setSyncing(false);
